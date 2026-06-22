@@ -1,0 +1,164 @@
+add_record:
+  name: Add Record
+  description: Add a vinyl record to your collection.
+  fields:
+    artist:
+      name: Artist
+      required: true
+      example: "Pink Floyd"
+      selector:
+        text:
+    album:
+      name: Album
+      required: true
+      example: "The Dark Side of the Moon"
+      selector:
+        text:
+    year:
+      name: Year
+      required: false
+      example: 1973
+      selector:
+        number:
+          min: 1900
+          max: 2100
+          mode: box
+    format:
+      name: Format
+      required: false
+      example: "LP"
+      selector:
+        select:
+          options:
+            - "LP"
+            - "12\""
+            - "10\""
+            - "7\""
+            - "Box Set"
+            - "Picture Disc"
+          custom_value: true
+    condition:
+      name: Condition
+      required: false
+      selector:
+        select:
+          options:
+            - "Mint (M)"
+            - "Near Mint (NM)"
+            - "Very Good Plus (VG+)"
+            - "Very Good (VG)"
+            - "Good (G)"
+            - "Fair"
+            - "Poor"
+          custom_value: true
+    genre:
+      name: Genre
+      required: false
+      selector:
+        text:
+    label:
+      name: Record Label
+      required: false
+      selector:
+        text:
+    catalog_number:
+      name: Catalog Number
+      required: false
+      selector:
+        text:
+    notes:
+      name: Notes
+      required: false
+      selector:
+        text:
+          multiline: true
+    discogs_id:
+      name: Discogs ID
+      required: false
+      selector:
+        text:
+    cover_url:
+      name: Cover Art URL
+      required: false
+      selector:
+        text:
+
+remove_record:
+  name: Remove Record
+  description: Remove a record from your collection.
+  fields:
+    record_id:
+      name: Record ID
+      required: true
+      selector:
+        text:
+
+update_record:
+  name: Update Record
+  description: Update fields on an existing record.
+  fields:
+    record_id:
+      name: Record ID
+      required: true
+      selector:
+        text:
+    artist:
+      name: Artist
+      required: false
+      selector:
+        text:
+    album:
+      name: Album
+      required: false
+      selector:
+        text:
+    year:
+      name: Year
+      required: false
+      selector:
+        number:
+          min: 1900
+          max: 2100
+          mode: box
+    format:
+      name: Format
+      required: false
+      selector:
+        text:
+    condition:
+      name: Condition
+      required: false
+      selector:
+        text:
+    genre:
+      name: Genre
+      required: false
+      selector:
+        text:
+    label:
+      name: Record Label
+      required: false
+      selector:
+        text:
+    catalog_number:
+      name: Catalog Number
+      required: false
+      selector:
+        text:
+    notes:
+      name: Notes
+      required: false
+      selector:
+        text:
+          multiline: true
+
+search:
+  name: Search Collection
+  description: Search your collection by artist, album, label, genre, or catalog number. Returns matching records.
+  fields:
+    query:
+      name: Query
+      required: false
+      example: "Pink Floyd"
+      selector:
+        text:

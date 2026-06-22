@@ -6,6 +6,7 @@ import logging
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 
 from .const import (
@@ -78,7 +79,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
     store = VinylCollectionStore(hass)
-    await store.async_load()
+    try:
+        await store.async_load()
+    except Exception:
+        _LOGGER.exception(
+            "Failed to load vinyl collection storage; starting with empty collection"
+        )
+
     hass.data[DOMAIN][entry.entry_id] = store
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -110,33 +117,49 @@ def _register_services(hass: HomeAssistant, store: VinylCollectionStore) -> None
     """Register all vinyl_collection services."""
 
     async def handle_add_record(call: ServiceCall) -> ServiceResponse:
-        record = await store.async_add_record(dict(call.data))
+        try:
+            record = await store.async_add_record(dict(call.data))
+        except Exception as err:
+            _LOGGER.exception("Failed to add record")
+            raise HomeAssistantError(f"Failed to add record: {err}") from err
         hass.bus.async_fire(EVENT_RECORD_ADDED, {"record": record})
         _refresh_sensors(hass)
         return {"record": record}
 
     async def handle_remove_record(call: ServiceCall) -> ServiceResponse:
         record_id = call.data[ATTR_RECORD_ID]
-        removed = await store.async_remove_record(record_id)
-        if removed:
-            hass.bus.async_fire(EVENT_RECORD_REMOVED, {"record_id": record_id})
-            _refresh_sensors(hass)
+        try:
+            removed = await store.async_remove_record(record_id)
+        except Exception as err:
+            _LOGGER.exception("Failed to remove record %s", record_id)
+            raise HomeAssistantError(f"Failed to remove record: {err}") from err
+        if not removed:
+            raise HomeAssistantError(f"Record not found: {record_id}")
+        hass.bus.async_fire(EVENT_RECORD_REMOVED, {"record_id": record_id})
+        _refresh_sensors(hass)
         return {"removed": removed}
 
     async def handle_update_record(call: ServiceCall) -> ServiceResponse:
         data = dict(call.data)
         record_id = data.pop(ATTR_RECORD_ID)
-        record = await store.async_update_record(record_id, data)
-        if record:
-            hass.bus.async_fire(EVENT_RECORD_UPDATED, {"record": record})
+        try:
+            record = await store.async_update_record(record_id, data)
+        except Exception as err:
+            _LOGGER.exception("Failed to update record %s", record_id)
+            raise HomeAssistantError(f"Failed to update record: {err}") from err
+        if record is None:
+            raise HomeAssistantError(f"Record not found: {record_id}")
+        hass.bus.async_fire(EVENT_RECORD_UPDATED, {"record": record})
         return {"record": record}
 
     async def handle_search(call: ServiceCall) -> ServiceResponse:
         query = call.data.get(ATTR_QUERY, "")
-        results = store.search(query)
+        try:
+            results = store.search(query)
+        except Exception as err:
+            _LOGGER.exception("Search failed for query: %s", query)
+            raise HomeAssistantError(f"Search failed: {err}") from err
 
-        # Flag exact artist+album matches so the shopping-mode UI can
-        # warn "you already own this" prominently.
         exact_match = None
         if query:
             parts = query.split(" - ", 1)

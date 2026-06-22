@@ -5,7 +5,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.components.sensor import SensorEntity
 
 from .const import DOMAIN
@@ -50,7 +49,6 @@ class VinylCollectionCountSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        # Small breakdown by format, useful at a glance on a dashboard
         formats: dict[str, int] = {}
         for record in self._store.records.values():
             fmt = record.get("format") or "Unknown"

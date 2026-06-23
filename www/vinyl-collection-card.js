@@ -3,6 +3,29 @@
  * Uses native Home Assistant web components for consistent UI
  */
 
+// Explicitly import HA components that may not be registered yet
+const loadComponents = async () => {
+  await Promise.all([
+    customElements.whenDefined("ha-textfield"),
+    customElements.whenDefined("ha-select"),
+    customElements.whenDefined("ha-textarea"),
+    customElements.whenDefined("ha-icon-button"),
+    customElements.whenDefined("ha-icon"),
+  ]);
+
+  // mwc-button and ha-dialog need to be explicitly loaded
+  if (!customElements.get("mwc-button")) {
+    await import("/frontend_latest/mwc-button.js").catch(() =>
+      import("/static/mwc-button.js").catch(() => null)
+    );
+  }
+  if (!customElements.get("ha-dialog")) {
+    await import("/frontend_latest/ha-dialog.js").catch(() =>
+      import("/static/ha-dialog.js").catch(() => null)
+    );
+  }
+};
+
 const FORMATS = ["LP", '12"', '10"', '7"', "Box Set", "Picture Disc"];
 const CONDITIONS = [
   "Mint (M)", "Near Mint (NM)", "Very Good Plus (VG+)",
@@ -19,6 +42,7 @@ class VinylCollectionCard extends HTMLElement {
     this._modalRating = 0;
     this._sortCol = "artist";
     this._sortDir = 1;
+    this._dialogOpen = false;
   }
 
   setConfig(config) { this._config = config || {}; }
@@ -26,9 +50,11 @@ class VinylCollectionCard extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     if (!this._rendered) {
-      this._render();
-      this._rendered = true;
-      this._search("");
+      loadComponents().then(() => {
+        this._render();
+        this._rendered = true;
+        this._search("");
+      });
     }
   }
 
@@ -64,7 +90,7 @@ class VinylCollectionCard extends HTMLElement {
       const q = this.shadowRoot.querySelector("#search-input").value;
       this._search(q);
     } catch (e) {
-      const el = this.shadowRoot.querySelector("#modal-error");
+      const el = this.shadowRoot.querySelector("#dialog-error");
       if (el) { el.textContent = "Save failed: " + e.message; el.style.display = "block"; }
     }
   }
@@ -79,14 +105,13 @@ class VinylCollectionCard extends HTMLElement {
   _openDialog(record) {
     this._modalRecord = record || {};
     this._modalRating = record ? (record.rating || 0) : 0;
-    this._renderDialogContent();
-    const dialog = this.shadowRoot.querySelector("ha-dialog");
-    dialog.open = true;
+    this._dialogOpen = true;
+    this._renderDialog();
   }
 
   _closeDialog() {
-    const dialog = this.shadowRoot.querySelector("ha-dialog");
-    dialog.open = false;
+    this._dialogOpen = false;
+    this._renderDialog();
   }
 
   _setSort(col) {
@@ -122,7 +147,6 @@ class VinylCollectionCard extends HTMLElement {
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :host { display: block; font-family: inherit; }
-
   ha-card { padding: 16px 20px; }
 
   .toolbar {
@@ -131,14 +155,26 @@ class VinylCollectionCard extends HTMLElement {
     align-items: center;
     margin-bottom: 16px;
   }
+  .search-wrap { flex: 1; }
+  .search-wrap ha-textfield { width: 100%; }
 
-  .search-wrap {
-    flex: 1;
+  .add-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 16px;
+    height: 36px;
+    border-radius: 18px;
+    border: none;
+    background: var(--primary-color);
+    color: var(--text-primary-color, #fff);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
   }
-
-  .search-wrap ha-textfield {
-    width: 100%;
-  }
+  .add-btn:hover { opacity: 0.9; }
 
   .count {
     font-size: 12px;
@@ -147,12 +183,7 @@ class VinylCollectionCard extends HTMLElement {
   }
 
   .table-wrap { overflow-x: auto; }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
 
   thead th {
     text-align: left;
@@ -164,24 +195,14 @@ class VinylCollectionCard extends HTMLElement {
     user-select: none;
     white-space: nowrap;
   }
-
   thead th:hover { color: var(--primary-text-color); }
   thead th .arrow { margin-left: 3px; opacity: 0.4; font-size: 10px; }
   thead th.active .arrow { opacity: 1; }
 
   tbody tr { border-bottom: 1px solid var(--divider-color); }
   tbody tr:hover { background: var(--secondary-background-color); }
-
-  td {
-    padding: 8px;
-    vertical-align: middle;
-  }
-
-  td.actions {
-    white-space: nowrap;
-    text-align: right;
-    padding-right: 4px;
-  }
+  td { padding: 8px; vertical-align: middle; }
+  td.actions { white-space: nowrap; text-align: right; padding-right: 4px; }
 
   .stars { color: var(--disabled-text-color); font-size: 14px; letter-spacing: 1px; }
   .stars .star.on { color: #f4a820; }
@@ -193,29 +214,41 @@ class VinylCollectionCard extends HTMLElement {
     font-size: 13px;
   }
 
-  ha-dialog {
-    --mdc-dialog-min-width: 360px;
-    --mdc-dialog-max-width: 480px;
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
   }
+  .overlay.open { display: flex; }
 
-  .dialog-title {
-    font-size: 18px;
-    font-weight: 500;
-    padding: 20px 24px 0;
-  }
-
-  .dialog-body {
-    padding: 8px 24px 0;
+  .dialog {
+    background: var(--card-background-color, #fff);
+    color: var(--primary-text-color);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 460px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 24px;
     display: flex;
     flex-direction: column;
     gap: 12px;
+    box-shadow: var(--mdc-dialog-box-shadow, 0 8px 32px rgba(0,0,0,0.3));
   }
 
-  .dialog-body ha-textfield,
-  .dialog-body ha-select,
-  .dialog-body ha-textarea {
-    width: 100%;
+  .dialog h3 {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 4px;
   }
+
+  .dialog ha-textfield,
+  .dialog ha-select,
+  .dialog ha-textarea { width: 100%; }
 
   .row2 { display: flex; gap: 12px; }
   .row2 > * { flex: 1; }
@@ -226,12 +259,7 @@ class VinylCollectionCard extends HTMLElement {
     margin-bottom: 4px;
   }
 
-  .star-pick {
-    display: flex;
-    gap: 6px;
-    padding: 4px 0;
-  }
-
+  .star-pick { display: flex; gap: 6px; padding: 4px 0; }
   .star-pick .star {
     font-size: 28px;
     cursor: pointer;
@@ -239,23 +267,42 @@ class VinylCollectionCard extends HTMLElement {
     line-height: 1;
     transition: color 0.1s;
   }
-
   .star-pick .star.on { color: #f4a820; }
-  .star-pick .star:hover { color: #f4a820; opacity: 0.7; }
+  .star-pick .star:hover { opacity: 0.7; }
 
   .dialog-error {
     display: none;
     font-size: 13px;
     color: var(--error-color);
-    padding: 0 0 4px;
   }
 
   .dialog-actions {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    padding: 8px 16px 16px;
+    margin-top: 4px;
   }
+
+  .btn {
+    padding: 0 16px;
+    height: 36px;
+    border-radius: 18px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    border: none;
+  }
+  .btn-cancel {
+    background: none;
+    color: var(--primary-color);
+    border: 1px solid var(--divider-color);
+  }
+  .btn-save {
+    background: var(--primary-color);
+    color: var(--text-primary-color, #fff);
+  }
+  .btn:hover { opacity: 0.85; }
 </style>
 
 <ha-card>
@@ -264,11 +311,10 @@ class VinylCollectionCard extends HTMLElement {
       <ha-textfield
         id="search-input"
         placeholder="Search artist, album, genre…"
-        icon="mdi:magnify"
         autocomplete="off"
       ></ha-textfield>
     </div>
-    <mwc-button raised id="add-btn" label="Add Record" icon="mdi:plus"></mwc-button>
+    <button class="add-btn" id="add-btn">＋ Add Record</button>
   </div>
 
   <div class="count" id="count"></div>
@@ -293,21 +339,22 @@ class VinylCollectionCard extends HTMLElement {
   </div>
 </ha-card>
 
-<ha-dialog id="record-dialog" flexContent>
-  <div class="dialog-title" id="dialog-title">Add Record</div>
-  <div class="dialog-body" id="dialog-body">
+<div class="overlay" id="dialog-overlay">
+  <div class="dialog" id="dialog-inner">
+    <h3 id="dialog-title">Add Record</h3>
+
     <ha-textfield id="f-artist" label="Artist *" autocomplete="off"></ha-textfield>
     <ha-textfield id="f-album" label="Album *" autocomplete="off"></ha-textfield>
 
     <div class="row2">
       <ha-textfield id="f-year" label="Year" type="number" min="1900" max="2100"></ha-textfield>
-      <ha-select id="f-format" label="Format" naturalMenuWidth>
+      <ha-select id="f-format" label="Format">
         <ha-list-item value="">—</ha-list-item>
         ${FORMATS.map(f => `<ha-list-item value="${f}">${f}</ha-list-item>`).join("")}
       </ha-select>
     </div>
 
-    <ha-select id="f-condition" label="Condition" naturalMenuWidth>
+    <ha-select id="f-condition" label="Condition">
       <ha-list-item value="">—</ha-list-item>
       ${CONDITIONS.map(c => `<ha-list-item value="${c}">${c}</ha-list-item>`).join("")}
     </ha-select>
@@ -324,45 +371,51 @@ class VinylCollectionCard extends HTMLElement {
     <ha-textarea id="f-notes" label="Notes" autocomplete="off"></ha-textarea>
 
     <div class="dialog-error" id="dialog-error"></div>
-  </div>
 
-  <div class="dialog-actions">
-    <mwc-button id="dialog-cancel" label="Cancel" dialogAction="close"></mwc-button>
-    <mwc-button id="dialog-save" label="Save" raised></mwc-button>
+    <div class="dialog-actions">
+      <button class="btn btn-cancel" id="dialog-cancel">Cancel</button>
+      <button class="btn btn-save" id="dialog-save">Save</button>
+    </div>
   </div>
-</ha-dialog>
+</div>
 `;
 
     root.querySelector("#search-input").addEventListener("input", e => this._onSearchInput(e.target.value));
     root.querySelector("#add-btn").addEventListener("click", () => this._openDialog(null));
+
     root.querySelector("#thead").querySelectorAll("th[data-col]").forEach(th => {
       th.addEventListener("click", () => this._setSort(th.dataset.col));
     });
+
     root.querySelectorAll("#star-pick .star").forEach(s => {
-      s.addEventListener("click", () => this._onStarClick(parseInt(s.dataset.v)));
+      s.addEventListener("click", () => {
+        const v = parseInt(s.dataset.v);
+        this._modalRating = this._modalRating === v ? 0 : v;
+        this._updateStars();
+      });
     });
+
     root.querySelector("#dialog-save").addEventListener("click", () => this._onSave());
     root.querySelector("#dialog-cancel").addEventListener("click", () => this._closeDialog());
-  }
 
-  _onStarClick(v) {
-    this._modalRating = this._modalRating === v ? 0 : v;
-    this._updateStars();
-  }
-
-  _updateStars() {
-    this.shadowRoot.querySelectorAll("#star-pick .star").forEach(s => {
-      s.classList.toggle("on", parseInt(s.dataset.v) <= this._modalRating);
+    root.querySelector("#dialog-overlay").addEventListener("click", e => {
+      if (e.target === root.querySelector("#dialog-overlay")) this._closeDialog();
     });
   }
 
-  _renderDialogContent() {
+  _renderDialog() {
+    const overlay = this.shadowRoot.querySelector("#dialog-overlay");
+    if (!this._dialogOpen) {
+      overlay.classList.remove("open");
+      return;
+    }
+
     const r = this._modalRecord || {};
     const isEdit = !!r.record_id;
     const root = this.shadowRoot;
 
     root.querySelector("#dialog-title").textContent = isEdit ? "Edit Record" : "Add Record";
-    root.querySelector("#dialog-save").label = isEdit ? "Save Changes" : "Add to Collection";
+    root.querySelector("#dialog-save").textContent = isEdit ? "Save Changes" : "Add to Collection";
     root.querySelector("#dialog-error").style.display = "none";
 
     root.querySelector("#f-artist").value = r.artist || "";
@@ -377,6 +430,13 @@ class VinylCollectionCard extends HTMLElement {
     }, 50);
 
     this._updateStars();
+    overlay.classList.add("open");
+  }
+
+  _updateStars() {
+    this.shadowRoot.querySelectorAll("#star-pick .star").forEach(s => {
+      s.classList.toggle("on", parseInt(s.dataset.v) <= this._modalRating);
+    });
   }
 
   _onSave() {

@@ -21,6 +21,7 @@ from .const import (
     ATTR_LABEL,
     ATTR_NOTES,
     ATTR_QUERY,
+    ATTR_RATING,
     ATTR_RECORD_ID,
     ATTR_YEAR,
     DOMAIN,
@@ -51,6 +52,7 @@ ADD_RECORD_SCHEMA = vol.Schema(
         vol.Optional(ATTR_NOTES): cv.string,
         vol.Optional(ATTR_DISCOGS_ID): cv.string,
         vol.Optional(ATTR_COVER_URL): cv.string,
+        vol.Optional(ATTR_RATING): vol.All(vol.Coerce(int), vol.Range(min=1, max=5)),
     }
 )
 
@@ -68,6 +70,7 @@ UPDATE_RECORD_SCHEMA = vol.Schema(
         vol.Optional(ATTR_LABEL): cv.string,
         vol.Optional(ATTR_CATALOG_NUMBER): cv.string,
         vol.Optional(ATTR_NOTES): cv.string,
+        vol.Optional(ATTR_RATING): vol.All(vol.Coerce(int), vol.Range(min=1, max=5)),
     }
 )
 
@@ -90,7 +93,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Services are global (not per-entry) since this is a single-instance integration
     if not hass.services.has_service(DOMAIN, SERVICE_ADD_RECORD):
         _register_services(hass, store)
 

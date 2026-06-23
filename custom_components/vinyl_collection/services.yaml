@@ -26,7 +26,6 @@ add_record:
     format:
       name: Format
       required: false
-      example: "LP"
       selector:
         select:
           options:
@@ -56,22 +55,20 @@ add_record:
       required: false
       selector:
         text:
-    label:
-      name: Record Label
-      required: false
-      selector:
-        text:
-    catalog_number:
-      name: Catalog Number
-      required: false
-      selector:
-        text:
     notes:
       name: Notes
       required: false
       selector:
         text:
           multiline: true
+    rating:
+      name: Rating
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 5
+          mode: box
     discogs_id:
       name: Discogs ID
       required: false
@@ -135,22 +132,20 @@ update_record:
       required: false
       selector:
         text:
-    label:
-      name: Record Label
-      required: false
-      selector:
-        text:
-    catalog_number:
-      name: Catalog Number
-      required: false
-      selector:
-        text:
     notes:
       name: Notes
       required: false
       selector:
         text:
           multiline: true
+    rating:
+      name: Rating
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 5
+          mode: box
 
 search:
   name: Search Collection

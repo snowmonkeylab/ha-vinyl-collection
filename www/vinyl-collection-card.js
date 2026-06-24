@@ -7,6 +7,11 @@ const CONDITIONS = [
   "Mint (M)", "Near Mint (NM)", "Very Good Plus (VG+)",
   "Very Good (VG)", "Good (G)", "Fair", "Poor"
 ];
+const GENRES = [
+  "Blues", "Classical", "Country", "Electronic", "Folk",
+  "Hip-Hop", "Jazz", "Metal", "Pop", "Punk",
+  "Reggae", "Rock", "Soul", "World"
+];
 
 class VinylCollectionCard extends HTMLElement {
   constructor() {
@@ -18,7 +23,7 @@ class VinylCollectionCard extends HTMLElement {
     this._modalRating = 0;
     this._sortCol = "artist";
     this._sortDir = 1;
-    this._dialogOpen = false;
+    this._deleteId = null;
   }
 
   setConfig(config) { this._config = config || {}; }
@@ -70,22 +75,39 @@ class VinylCollectionCard extends HTMLElement {
   }
 
   async _deleteRecord(id) {
-    if (!confirm("Remove this record from your collection?")) return;
-    await this._call("remove_record", { record_id: id });
-    const q = this.shadowRoot.querySelector("#search-input").value;
-    this._search(q);
+    try {
+      await this._call("remove_record", { record_id: id });
+      this._closeDeleteDialog();
+      const q = this.shadowRoot.querySelector("#search-input").value;
+      this._search(q);
+    } catch (e) {
+      this._closeDeleteDialog();
+    }
+  }
+
+  _openDeleteDialog(id) {
+    this._deleteId = id;
+    const rec = this._records.find(r => r.record_id === id);
+    const label = rec ? rec.artist + " - " + rec.album : "this record";
+    this.shadowRoot.querySelector("#delete-msg").textContent = "Remove \"" + label + "\" from your collection?";
+    this.shadowRoot.querySelector("#delete-overlay").classList.add("open");
+  }
+
+  _closeDeleteDialog() {
+    this._deleteId = null;
+    this.shadowRoot.querySelector("#delete-overlay").classList.remove("open");
   }
 
   _openDialog(record) {
     this._modalRecord = record || {};
     this._modalRating = record ? (record.rating || 0) : 0;
-    this._dialogOpen = true;
     this._renderDialog();
+    this.shadowRoot.querySelector("#dialog-overlay").classList.add("open");
   }
 
   _closeDialog() {
-    this._dialogOpen = false;
     this.shadowRoot.querySelector("#dialog-overlay").classList.remove("open");
+    this.shadowRoot.querySelector("#artist-suggestions").style.display = "none";
   }
 
   _setSort(col) {
@@ -124,6 +146,45 @@ class VinylCollectionCard extends HTMLElement {
     return CONDITIONS.map(c => "<option value=\"" + c + "\">" + c + "</option>").join("");
   }
 
+  _genreOptions(selected) {
+    return GENRES.map(g =>
+      "<option value=\"" + g + "\"" + (g === selected ? " selected" : "") + ">" + g + "</option>"
+    ).join("") + "<option value=\"__custom__\">Other (custom)...</option>";
+  }
+
+  _uniqueArtists() {
+    const seen = new Set();
+    this._records.forEach(r => { if (r.artist) seen.add(r.artist); });
+    return Array.from(seen).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+  }
+
+  _updateArtistSuggestions(value) {
+    const root = this.shadowRoot;
+    const suggestions = root.querySelector("#artist-suggestions");
+    if (!value.trim()) {
+      suggestions.style.display = "none";
+      return;
+    }
+    const matches = this._uniqueArtists().filter(a =>
+      a.toLowerCase().includes(value.toLowerCase()) && a.toLowerCase() !== value.toLowerCase()
+    );
+    if (matches.length === 0) {
+      suggestions.style.display = "none";
+      return;
+    }
+    suggestions.innerHTML = matches.slice(0, 6).map(a =>
+      "<div class=\"suggestion\" data-value=\"" + this._esc(a) + "\">" + this._esc(a) + "</div>"
+    ).join("");
+    suggestions.style.display = "block";
+    suggestions.querySelectorAll(".suggestion").forEach(el => {
+      el.addEventListener("mousedown", e => {
+        e.preventDefault();
+        root.querySelector("#f-artist").value = el.dataset.value;
+        suggestions.style.display = "none";
+      });
+    });
+  }
+
   _render() {
     const root = this.shadowRoot;
     root.innerHTML =
@@ -148,15 +209,17 @@ class VinylCollectionCard extends HTMLElement {
       "tbody tr:hover { background: var(--secondary-background-color); }" +
       "td { padding: 8px; vertical-align: middle; }" +
       "td.actions { white-space: nowrap; text-align: right; }" +
-      ".icon-btn { background: none; border: none; cursor: pointer; padding: 4px 6px; border-radius: 4px; font-size: 16px; opacity: 0.6; }" +
-      ".icon-btn:hover { opacity: 1; }" +
+      ".icon-btn { background: none; border: none; cursor: pointer; padding: 4px; border-radius: 4px; opacity: 0.7; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; }" +
+      ".icon-btn:hover { opacity: 1; background: var(--secondary-background-color); }" +
       ".icon-btn.edit { color: var(--primary-color); }" +
       ".icon-btn.del { color: var(--error-color, #db4437); }" +
       ".stars { font-size: 14px; letter-spacing: 1px; color: var(--disabled-text-color, #ccc); }" +
       ".stars .star.on { color: #f4a820; }" +
       ".empty { text-align: center; padding: 32px; color: var(--secondary-text-color); font-size: 13px; }" +
+      /* shared overlay */
       ".overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; }" +
       ".overlay.open { display: flex; }" +
+      /* main dialog */
       ".dialog { background: var(--card-background-color, #fff); color: var(--primary-text-color); border-radius: 12px; width: 90%; max-width: 460px; max-height: 90vh; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }" +
       ".dialog h3 { font-size: 18px; font-weight: 500; }" +
       "label { display: block; font-size: 12px; color: var(--secondary-text-color); margin-bottom: 3px; }" +
@@ -165,6 +228,12 @@ class VinylCollectionCard extends HTMLElement {
       "textarea { resize: vertical; min-height: 60px; }" +
       ".row2 { display: flex; gap: 12px; }" +
       ".row2 > div { flex: 1; }" +
+      /* artist typeahead */
+      ".artist-wrap { position: relative; }" +
+      ".suggestions { position: absolute; top: 100%; left: 0; right: 0; background: var(--card-background-color, #fff); border: 1px solid var(--divider-color, #ccc); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10; display: none; max-height: 200px; overflow-y: auto; }" +
+      ".suggestion { padding: 8px 12px; cursor: pointer; font-size: 14px; color: var(--primary-text-color); }" +
+      ".suggestion:hover { background: var(--secondary-background-color); }" +
+      /* stars */
       ".star-pick { display: flex; gap: 8px; padding: 4px 0; }" +
       ".star-pick .star { font-size: 28px; cursor: pointer; color: var(--disabled-text-color, #ccc); line-height: 1; }" +
       ".star-pick .star.on { color: #f4a820; }" +
@@ -173,7 +242,12 @@ class VinylCollectionCard extends HTMLElement {
       ".btn { padding: 0 16px; height: 36px; border-radius: 18px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; border: none; }" +
       ".btn-cancel { background: none; color: var(--primary-color); border: 1px solid var(--divider-color, #ccc); }" +
       ".btn-save { background: var(--primary-color); color: var(--text-primary-color, #fff); }" +
+      ".btn-delete { background: var(--error-color, #db4437); color: #fff; }" +
       ".btn:hover { opacity: 0.85; }" +
+      /* delete confirm dialog */
+      ".delete-dialog { background: var(--card-background-color, #fff); color: var(--primary-text-color); border-radius: 12px; width: 90%; max-width: 360px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }" +
+      ".delete-dialog h3 { font-size: 16px; font-weight: 500; }" +
+      ".delete-dialog p { font-size: 14px; color: var(--secondary-text-color); line-height: 1.5; }" +
       "</style>" +
       "<ha-card>" +
       "<div class=\"toolbar\">" +
@@ -198,17 +272,23 @@ class VinylCollectionCard extends HTMLElement {
       "</table>" +
       "</div>" +
       "</ha-card>" +
+      /* edit/add dialog */
       "<div class=\"overlay\" id=\"dialog-overlay\">" +
       "<div class=\"dialog\">" +
       "<h3 id=\"dialog-title\">Add Record</h3>" +
-      "<div><label>Artist *</label><input type=\"text\" id=\"f-artist\" autocomplete=\"off\"/></div>" +
+      "<div><label>Artist *</label>" +
+      "<div class=\"artist-wrap\">" +
+      "<input type=\"text\" id=\"f-artist\" autocomplete=\"off\"/>" +
+      "<div class=\"suggestions\" id=\"artist-suggestions\"></div>" +
+      "</div></div>" +
       "<div><label>Album *</label><input type=\"text\" id=\"f-album\" autocomplete=\"off\"/></div>" +
       "<div class=\"row2\">" +
       "<div><label>Year</label><input type=\"number\" id=\"f-year\" min=\"1900\" max=\"2100\"/></div>" +
       "<div><label>Format</label><select id=\"f-format\"><option value=\"\">--</option>" + this._formatOptions() + "</select></div>" +
       "</div>" +
       "<div><label>Condition</label><select id=\"f-condition\"><option value=\"\">--</option>" + this._conditionOptions() + "</select></div>" +
-      "<div><label>Genre</label><input type=\"text\" id=\"f-genre\" autocomplete=\"off\"/></div>" +
+      "<div><label>Genre</label><select id=\"f-genre-select\"><option value=\"\">--</option>" + this._genreOptions("") + "</select>" +
+      "<input type=\"text\" id=\"f-genre-custom\" placeholder=\"Enter genre...\" autocomplete=\"off\" style=\"margin-top:6px;display:none;\"/></div>" +
       "<div><label>Rating</label>" +
       "<div class=\"star-pick\" id=\"star-pick\">" +
       "<span class=\"star\" data-v=\"1\">&#9733;</span>" +
@@ -222,6 +302,17 @@ class VinylCollectionCard extends HTMLElement {
       "<div class=\"dialog-actions\">" +
       "<button class=\"btn btn-cancel\" id=\"dialog-cancel\">Cancel</button>" +
       "<button class=\"btn btn-save\" id=\"dialog-save\">Save</button>" +
+      "</div>" +
+      "</div>" +
+      "</div>" +
+      /* delete confirm dialog */
+      "<div class=\"overlay\" id=\"delete-overlay\">" +
+      "<div class=\"delete-dialog\">" +
+      "<h3>Remove Record</h3>" +
+      "<p id=\"delete-msg\"></p>" +
+      "<div class=\"dialog-actions\">" +
+      "<button class=\"btn btn-cancel\" id=\"delete-cancel\">Cancel</button>" +
+      "<button class=\"btn btn-delete\" id=\"delete-confirm\">Remove</button>" +
       "</div>" +
       "</div>" +
       "</div>";
@@ -241,10 +332,40 @@ class VinylCollectionCard extends HTMLElement {
       });
     });
 
+    // Artist typeahead
+    root.querySelector("#f-artist").addEventListener("input", e => {
+      this._updateArtistSuggestions(e.target.value);
+    });
+    root.querySelector("#f-artist").addEventListener("blur", () => {
+      setTimeout(() => {
+        const s = root.querySelector("#artist-suggestions");
+        if (s) s.style.display = "none";
+      }, 150);
+    });
+
+    // Genre custom toggle
+    root.querySelector("#f-genre-select").addEventListener("change", e => {
+      const custom = root.querySelector("#f-genre-custom");
+      if (e.target.value === "__custom__") {
+        custom.style.display = "block";
+        custom.focus();
+      } else {
+        custom.style.display = "none";
+      }
+    });
+
     root.querySelector("#dialog-save").addEventListener("click", () => this._onSave());
     root.querySelector("#dialog-cancel").addEventListener("click", () => this._closeDialog());
     root.querySelector("#dialog-overlay").addEventListener("click", e => {
       if (e.target === root.querySelector("#dialog-overlay")) this._closeDialog();
+    });
+
+    root.querySelector("#delete-confirm").addEventListener("click", () => {
+      if (this._deleteId) this._deleteRecord(this._deleteId);
+    });
+    root.querySelector("#delete-cancel").addEventListener("click", () => this._closeDeleteDialog());
+    root.querySelector("#delete-overlay").addEventListener("click", e => {
+      if (e.target === root.querySelector("#delete-overlay")) this._closeDeleteDialog();
     });
   }
 
@@ -252,21 +373,36 @@ class VinylCollectionCard extends HTMLElement {
     const r = this._modalRecord || {};
     const isEdit = !!r.record_id;
     const root = this.shadowRoot;
+    const genre = r.genre || "";
+    const isCustomGenre = genre !== "" && !GENRES.includes(genre);
 
     root.querySelector("#dialog-title").textContent = isEdit ? "Edit Record" : "Add Record";
     root.querySelector("#dialog-save").textContent = isEdit ? "Save Changes" : "Add to Collection";
     root.querySelector("#dialog-error").style.display = "none";
+    root.querySelector("#artist-suggestions").style.display = "none";
 
     root.querySelector("#f-artist").value = r.artist || "";
     root.querySelector("#f-album").value = r.album || "";
     root.querySelector("#f-year").value = r.year || "";
-    root.querySelector("#f-genre").value = r.genre || "";
     root.querySelector("#f-notes").value = r.notes || "";
     root.querySelector("#f-format").value = r.format || "";
     root.querySelector("#f-condition").value = r.condition || "";
 
+    const genreSelect = root.querySelector("#f-genre-select");
+    const genreCustom = root.querySelector("#f-genre-custom");
+    genreSelect.innerHTML = "<option value=\"\">--</option>" + this._genreOptions(isCustomGenre ? "" : genre);
+
+    if (isCustomGenre) {
+      genreSelect.value = "__custom__";
+      genreCustom.value = genre;
+      genreCustom.style.display = "block";
+    } else {
+      genreSelect.value = genre;
+      genreCustom.value = "";
+      genreCustom.style.display = "none";
+    }
+
     this._updateStars();
-    root.querySelector("#dialog-overlay").classList.add("open");
   }
 
   _updateStars() {
@@ -300,7 +436,9 @@ class VinylCollectionCard extends HTMLElement {
     const cond = root.querySelector("#f-condition").value;
     if (cond) data.condition = cond;
 
-    const genre = root.querySelector("#f-genre").value.trim();
+    const genreSelect = root.querySelector("#f-genre-select").value;
+    const genreCustom = root.querySelector("#f-genre-custom").value.trim();
+    const genre = genreSelect === "__custom__" ? genreCustom : genreSelect;
     if (genre) data.genre = genre;
 
     if (this._modalRating) data.rating = this._modalRating;
@@ -341,8 +479,12 @@ class VinylCollectionCard extends HTMLElement {
       "<td>" + this._esc(r.genre || "") + "</td>" +
       "<td>" + this._esc(r.notes || "") + "</td>" +
       "<td class=\"actions\">" +
-      "<button class=\"icon-btn edit\" data-id=\"" + r.record_id + "\" data-action=\"edit\" title=\"Edit\">&#9998;</button>" +
-      "<button class=\"icon-btn del\" data-id=\"" + r.record_id + "\" data-action=\"delete\" title=\"Delete\">&#10005;</button>" +
+      "<button class=\"icon-btn edit\" data-id=\"" + r.record_id + "\" data-action=\"edit\" title=\"Edit\">" +
+      "<ha-icon icon=\"mdi:pencil\"></ha-icon>" +
+      "</button>" +
+      "<button class=\"icon-btn del\" data-id=\"" + r.record_id + "\" data-action=\"delete\" title=\"Delete\">" +
+      "<ha-icon icon=\"mdi:delete\"></ha-icon>" +
+      "</button>" +
       "</td>" +
       "</tr>"
     ).join("");
@@ -354,7 +496,7 @@ class VinylCollectionCard extends HTMLElement {
           const rec = this._records.find(r => r.record_id === id);
           if (rec) this._openDialog(rec);
         } else {
-          this._deleteRecord(id);
+          this._openDeleteDialog(id);
         }
       });
     });

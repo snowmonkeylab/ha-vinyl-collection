@@ -5,6 +5,8 @@ STORAGE_KEY = "vinyl_collection_records"
 STORAGE_VERSION = 1
 
 CONF_NAME = "name"
+CONF_DISCOGS_TOKEN = "discogs_token"
+CONF_DISCOGS_ENABLED = "discogs_enabled"
 DEFAULT_NAME = "Vinyl Collection"
 
 # Service names
@@ -12,6 +14,8 @@ SERVICE_ADD_RECORD = "add_record"
 SERVICE_REMOVE_RECORD = "remove_record"
 SERVICE_UPDATE_RECORD = "update_record"
 SERVICE_SEARCH = "search"
+SERVICE_LOOKUP_DISCOGS = "lookup_discogs"
+SERVICE_GET_CONFIG = "get_config"
 
 # Record fields
 ATTR_RECORD_ID = "record_id"
@@ -27,6 +31,7 @@ ATTR_NOTES = "notes"
 ATTR_RATING = "rating"
 ATTR_DISCOGS_ID = "discogs_id"
 ATTR_COVER_URL = "cover_url"
+ATTR_SPOTIFY_URI = "spotify_uri"
 ATTR_DATE_ADDED = "date_added"
 ATTR_QUERY = "query"
 

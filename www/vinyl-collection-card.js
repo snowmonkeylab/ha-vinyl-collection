@@ -1,16 +1,13 @@
 /**
  * Vinyl Collection Card
+ * v2 - Discogs lookup, cover art, spinners
  */
 
-const FORMATS = ["LP", "12\"", "10\"", "7\"", "Box Set", "Picture Disc"];
-const CONDITIONS = [
-  "Mint (M)", "Near Mint (NM)", "Very Good Plus (VG+)",
-  "Very Good (VG)", "Good (G)", "Fair", "Poor"
-];
 const GENRES = [
-  "Blues", "Classical", "Country", "Electronic", "Folk",
-  "Hip-Hop", "Jazz", "Metal", "Pop", "Punk",
-  "Reggae", "Rock", "Soul", "World"
+  "Blues", "Brass & Military", "Children's", "Classical",
+  "Electronic", "Folk, World, & Country", "Funk / Soul",
+  "Hip Hop", "Jazz", "Latin", "Non-Music", "Pop",
+  "Reggae", "Rock", "Stage & Screen"
 ];
 
 class VinylCollectionCard extends HTMLElement {
@@ -19,6 +16,7 @@ class VinylCollectionCard extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._records = [];
     this._searchTimeout = null;
+    this._discogsSearchTimeout = null;
     this._modalRecord = null;
     this._modalRating = 0;
     this._sortCol = "artist";
@@ -26,6 +24,11 @@ class VinylCollectionCard extends HTMLElement {
     this._deleteId = null;
     this._loading = false;
     this._saving = false;
+    this._discogsResults = [];
+    this._discogsSearching = false;
+    this._hasDiscogsToken = null;
+    this._discogsEnabled = null;
+    this._selectedCoverUrl = null;
   }
 
   setConfig(config) { this._config = config || {}; }
@@ -35,11 +38,27 @@ class VinylCollectionCard extends HTMLElement {
     if (!this._rendered) {
       this._render();
       this._rendered = true;
-      this._search("");
+      this._init();
     }
   }
 
   getCardSize() { return 8; }
+
+  async _init() {
+    await this._checkDiscogsToken();
+    await this._search("");
+  }
+
+  async _checkDiscogsToken() {
+    try {
+      const r = await this._call("get_config", {});
+      this._hasDiscogsToken = r.response.has_discogs_token === true;
+      this._discogsEnabled = r.response.discogs_enabled === true;
+    } catch (e) {
+      this._hasDiscogsToken = false;
+      this._discogsEnabled = false;
+    }
+  }
 
   async _call(service, data) {
     return this._hass.callService("vinyl_collection", service, data, undefined, true, true);
@@ -67,10 +86,7 @@ class VinylCollectionCard extends HTMLElement {
     this._saving = on;
     const btn = this.shadowRoot.querySelector("#dialog-save");
     const spinner = this.shadowRoot.querySelector("#save-spinner");
-    if (btn) {
-      btn.disabled = on;
-      btn.style.opacity = on ? "0.6" : "1";
-    }
+    if (btn) { btn.disabled = on; btn.style.opacity = on ? "0.6" : "1"; }
     if (spinner) spinner.style.display = on ? "inline-block" : "none";
   }
 
@@ -127,6 +143,9 @@ class VinylCollectionCard extends HTMLElement {
   _openDialog(record) {
     this._modalRecord = record || {};
     this._modalRating = record ? (record.rating || 0) : 0;
+    this._discogsResults = [];
+    this._discogsSearching = false;
+    this._selectedCoverUrl = record ? (record.cover_url || null) : null;
     this._renderDialog();
     this.shadowRoot.querySelector("#dialog-overlay").classList.add("open");
   }
@@ -134,6 +153,7 @@ class VinylCollectionCard extends HTMLElement {
   _closeDialog() {
     this.shadowRoot.querySelector("#dialog-overlay").classList.remove("open");
     this.shadowRoot.querySelector("#artist-suggestions").style.display = "none";
+    clearTimeout(this._discogsSearchTimeout);
   }
 
   _setSort(col) {
@@ -164,12 +184,13 @@ class VinylCollectionCard extends HTMLElement {
     return html + "</span>";
   }
 
-  _formatOptions() {
-    return FORMATS.map(f => "<option value=\"" + f + "\">" + f + "</option>").join("");
-  }
-
-  _conditionOptions() {
-    return CONDITIONS.map(c => "<option value=\"" + c + "\">" + c + "</option>").join("");
+  _coverHTML(url, size) {
+    size = size || 40;
+    if (url) {
+      return "<img src=\"" + this._esc(url) + "\" width=\"" + size + "\" height=\"" + size + "\" style=\"border-radius:4px;object-fit:cover;display:block;\" onerror=\"this.style.display='none';this.nextSibling.style.display='block';\"/>" +
+        "<ha-icon icon=\"mdi:album\" style=\"display:none;width:" + size + "px;height:" + size + "px;color:var(--secondary-text-color);\"></ha-icon>";
+    }
+    return "<ha-icon icon=\"mdi:album\" style=\"width:" + size + "px;height:" + size + "px;color:var(--secondary-text-color);\"></ha-icon>";
   }
 
   _genreOptions(selected) {
@@ -205,6 +226,112 @@ class VinylCollectionCard extends HTMLElement {
     });
   }
 
+  async _doDiscogsSearch() {
+    const root = this.shadowRoot;
+    const query = root.querySelector("#discogs-search-input").value.trim();
+    if (!query) return;
+
+    this._discogsSearching = true;
+    this._renderDiscogsResults();
+
+    try {
+      const r = await this._call("lookup_discogs", { query });
+      this._discogsResults = r.response.results || [];
+    } catch (e) {
+      this._discogsResults = [];
+    }
+
+    this._discogsSearching = false;
+    this._renderDiscogsResults();
+  }
+
+  _renderDiscogsResults() {
+    const root = this.shadowRoot;
+    const container = root.querySelector("#discogs-results");
+    if (!container) return;
+
+    if (this._discogsSearching) {
+      container.innerHTML =
+        "<div style=\"display:flex;align-items:center;gap:8px;padding:12px;color:var(--secondary-text-color);font-size:13px;\">" +
+        "<div class=\"spinner\" style=\"width:16px;height:16px;border-width:2px;\"></div>Searching Discogs..." +
+        "</div>";
+      container.style.display = "block";
+      return;
+    }
+
+    if (this._discogsResults.length === 0) {
+      container.style.display = "none";
+      return;
+    }
+
+    container.innerHTML = this._discogsResults.map((r, i) =>
+      "<div class=\"discogs-result\" data-index=\"" + i + "\">" +
+      "<div class=\"discogs-thumb\">" + this._coverHTML(r.cover_url, 48) + "</div>" +
+      "<div class=\"discogs-info\">" +
+      "<div class=\"discogs-title\">" + this._esc(r.artist) + " - " + this._esc(r.album) + "</div>" +
+      "<div class=\"discogs-meta\">" +
+      (r.year ? r.year + " " : "") +
+      (r.format ? "&bull; " + this._esc(r.format) + " " : "") +
+      (r.label ? "&bull; " + this._esc(r.label) + " " : "") +
+      (r.country ? "&bull; " + this._esc(r.country) : "") +
+      "</div>" +
+      "</div>" +
+      "</div>"
+    ).join("");
+
+    container.style.display = "block";
+
+    container.querySelectorAll(".discogs-result").forEach(el => {
+      el.addEventListener("click", () => {
+        const result = this._discogsResults[parseInt(el.dataset.index)];
+        this._applyDiscogsResult(result);
+      });
+    });
+  }
+
+  _applyDiscogsResult(result) {
+    const root = this.shadowRoot;
+
+    root.querySelector("#f-artist").value = result.artist || "";
+    root.querySelector("#f-album").value = result.album || "";
+    root.querySelector("#f-year").value = result.year || "";
+
+    const genreSelect = root.querySelector("#f-genre-select");
+    const genreCustom = root.querySelector("#f-genre-custom");
+    const genre = result.genre || "";
+    const isCustomGenre = genre !== "" && !GENRES.includes(genre);
+    genreSelect.innerHTML = "<option value=\"\">--</option>" + this._genreOptions(isCustomGenre ? "" : genre);
+    if (isCustomGenre) {
+      genreSelect.value = "__custom__";
+      genreCustom.value = genre;
+      genreCustom.style.display = "block";
+    } else {
+      genreSelect.value = genre;
+      genreCustom.style.display = "none";
+    }
+
+    root.querySelector("#f-label").value = result.label || "";
+    root.querySelector("#f-catalog-number").value = result.catalog_number || "";
+    root.querySelector("#f-discogs-id").value = result.discogs_id || "";
+    root.querySelector("#f-cover-url").value = result.cover_url || "";
+    root.querySelector("#f-spotify-uri").value = result.spotify_uri || "";
+
+    this._selectedCoverUrl = result.cover_url || null;
+    this._renderCoverPreview();
+
+    root.querySelector("#discogs-results").style.display = "none";
+    root.querySelector("#discogs-search-input").value = "";
+    this._discogsResults = [];
+  }
+
+  _renderCoverPreview() {
+    const root = this.shadowRoot;
+    const preview = root.querySelector("#cover-preview");
+    if (!preview) return;
+    preview.innerHTML = this._coverHTML(this._selectedCoverUrl, 80);
+    preview.style.display = this._selectedCoverUrl ? "block" : "none";
+  }
+
   _render() {
     const root = this.shadowRoot;
     root.innerHTML =
@@ -216,7 +343,7 @@ class VinylCollectionCard extends HTMLElement {
       ".search-input { flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--divider-color, #ccc); background: var(--input-fill-color, var(--secondary-background-color, #f5f5f5)); color: var(--primary-text-color); font-size: 14px; font-family: inherit; outline: none; }" +
       ".search-input:focus { border-color: var(--primary-color); }" +
       ".add-btn { padding: 0 16px; height: 36px; border-radius: 18px; border: none; background: var(--primary-color); color: var(--text-primary-color, #fff); font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap; font-family: inherit; }" +
-      ".add-btn:hover { opacity: 0.9; }" +
+      ".add-btn:hover { opacity: 0.85; }" +
       ".count { font-size: 12px; color: var(--secondary-text-color); margin-bottom: 8px; }" +
       ".table-wrap { overflow-x: auto; position: relative; min-height: 60px; }" +
       "table { width: 100%; border-collapse: collapse; font-size: 13px; }" +
@@ -227,12 +354,11 @@ class VinylCollectionCard extends HTMLElement {
       "thead th.active .arrow { opacity: 1; }" +
       "tbody tr { border-bottom: 1px solid var(--divider-color); }" +
       "tbody tr:hover { background: var(--secondary-background-color); }" +
-      "td { padding: 8px; vertical-align: middle; }" +
+      "td { padding: 6px 8px; vertical-align: middle; }" +
+      "td.cover-cell { width: 48px; padding: 4px 8px; }" +
       "td.actions { white-space: nowrap; text-align: right; }" +
-      ".icon-btn { background: none; border: none; cursor: pointer; padding: 4px; border-radius: 4px; opacity: 0.7; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; }" +
-      ".icon-btn:hover { opacity: 1; background: var(--secondary-background-color); }" +
-      ".icon-btn.edit { color: var(--primary-color); }" +
-      ".icon-btn.del { color: var(--error-color, #db4437); }" +
+      ".icon-btn { background: none; border: none; cursor: pointer; padding: 4px; border-radius: 4px; opacity: 0.6; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; color: var(--secondary-text-color); }" +
+      ".icon-btn:hover { opacity: 1; background: var(--secondary-background-color); color: var(--primary-text-color); }" +
       ".stars { font-size: 14px; letter-spacing: 1px; color: var(--disabled-text-color, #ccc); }" +
       ".stars .star.on { color: #f4a820; }" +
       ".empty { text-align: center; padding: 32px; color: var(--secondary-text-color); font-size: 13px; }" +
@@ -242,8 +368,26 @@ class VinylCollectionCard extends HTMLElement {
       ".spinner-inline { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: none; margin-left: 8px; vertical-align: middle; }" +
       ".overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; }" +
       ".overlay.open { display: flex; }" +
-      ".dialog { background: var(--card-background-color, #fff); color: var(--primary-text-color); border-radius: 12px; width: 90%; max-width: 460px; max-height: 90vh; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }" +
+      ".dialog { background: var(--card-background-color, #fff); color: var(--primary-text-color); border-radius: 12px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }" +
       ".dialog h3 { font-size: 18px; font-weight: 500; }" +
+      ".discogs-search-row { margin-bottom: 0; }" +
+      ".discogs-search-row input { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--divider-color, #ccc); background: var(--input-fill-color, var(--secondary-background-color, #f5f5f5)); color: var(--primary-text-color); font-size: 14px; font-family: inherit; outline: none; }" +
+      ".discogs-search-row input:focus { border-color: var(--primary-color); }" +
+      ".discogs-search-row input:disabled { opacity: 0.45; cursor: not-allowed; }" +
+      ".discogs-hint { margin-top: 6px; font-size: 12px; color: var(--secondary-text-color); line-height: 1.4; display: none; }" +
+      ".discogs-disabled-notice { display: none; font-size: 13px; color: var(--secondary-text-color); background: var(--secondary-background-color, #f5f5f5); border-radius: 8px; padding: 10px 14px; line-height: 1.5; }" +
+      ".discogs-results { display: none; border: 1px solid var(--divider-color, #ccc); border-radius: 8px; overflow: hidden; }" +
+      ".discogs-result { display: flex; gap: 12px; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--divider-color, #eee); align-items: center; }" +
+      ".discogs-result:last-child { border-bottom: none; }" +
+      ".discogs-result:hover { background: var(--secondary-background-color); }" +
+      ".discogs-thumb { flex-shrink: 0; }" +
+      ".discogs-info { flex: 1; min-width: 0; }" +
+      ".discogs-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }" +
+      ".discogs-meta { font-size: 11px; color: var(--secondary-text-color); margin-top: 2px; }" +
+      ".discogs-divider { border: none; border-top: 1px solid var(--divider-color, #ccc); margin: 4px 0 0 0; }" +
+      ".cover-preview { display: none; }" +
+      ".cover-and-fields { display: flex; gap: 14px; align-items: flex-start; }" +
+      ".cover-and-fields .fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }" +
       "label { display: block; font-size: 12px; color: var(--secondary-text-color); margin-bottom: 3px; }" +
       "input[type=text], input[type=number], select, textarea { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--divider-color, #ccc); background: var(--input-fill-color, var(--secondary-background-color, #f5f5f5)); color: var(--primary-text-color); font-size: 14px; font-family: inherit; outline: none; }" +
       "input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus { border-color: var(--primary-color); }" +
@@ -279,14 +423,12 @@ class VinylCollectionCard extends HTMLElement {
       "<div class=\"spinner-wrap\" id=\"table-spinner\"><div class=\"spinner\"></div></div>" +
       "<table>" +
       "<thead id=\"thead\"><tr>" +
+      "<th></th>" +
       "<th data-col=\"artist\">Artist<span class=\"arrow\">-</span></th>" +
       "<th data-col=\"album\">Album<span class=\"arrow\">-</span></th>" +
       "<th data-col=\"year\">Year<span class=\"arrow\">-</span></th>" +
-      "<th data-col=\"format\">Format<span class=\"arrow\">-</span></th>" +
-      "<th data-col=\"condition\">Condition<span class=\"arrow\">-</span></th>" +
       "<th data-col=\"rating\">Rating<span class=\"arrow\">-</span></th>" +
       "<th data-col=\"genre\">Genre<span class=\"arrow\">-</span></th>" +
-      "<th data-col=\"notes\">Notes<span class=\"arrow\">-</span></th>" +
       "<th></th>" +
       "</tr></thead>" +
       "<tbody id=\"tbody\"></tbody>" +
@@ -296,17 +438,25 @@ class VinylCollectionCard extends HTMLElement {
       "<div class=\"overlay\" id=\"dialog-overlay\">" +
       "<div class=\"dialog\">" +
       "<h3 id=\"dialog-title\">Add Record</h3>" +
+      "<div class=\"discogs-disabled-notice\" id=\"discogs-disabled-notice\">You can enable record search using the Discogs API. To do this, navigate to Settings → Devices &amp; Services → Vinyl Collection → Configure.</div>" +
+      "<div id=\"discogs-section\">" +
+      "<div class=\"discogs-search-row\">" +
+      "<input type=\"text\" id=\"discogs-search-input\" autocomplete=\"off\"/>" +
+      "<p class=\"discogs-hint\" id=\"discogs-hint\">To enable Discogs search, add a Discogs token in the integration settings (Settings → Devices &amp; Services → Vinyl Collection → Configure).</p>" +
+      "</div>" +
+      "<div class=\"discogs-results\" id=\"discogs-results\"></div>" +
+      "<hr class=\"discogs-divider\"/>" +
+      "</div>" +
+      "<div class=\"cover-and-fields\">" +
+      "<div class=\"cover-preview\" id=\"cover-preview\"></div>" +
+      "<div class=\"fields\">" +
       "<div><label>Artist *</label>" +
       "<div class=\"artist-wrap\">" +
       "<input type=\"text\" id=\"f-artist\" autocomplete=\"off\"/>" +
       "<div class=\"suggestions\" id=\"artist-suggestions\"></div>" +
       "</div></div>" +
       "<div><label>Album *</label><input type=\"text\" id=\"f-album\" autocomplete=\"off\"/></div>" +
-      "<div class=\"row2\">" +
       "<div><label>Year</label><input type=\"number\" id=\"f-year\" min=\"1900\" max=\"2100\"/></div>" +
-      "<div><label>Format</label><select id=\"f-format\"><option value=\"\">--</option>" + this._formatOptions() + "</select></div>" +
-      "</div>" +
-      "<div><label>Condition</label><select id=\"f-condition\"><option value=\"\">--</option>" + this._conditionOptions() + "</select></div>" +
       "<div><label>Genre</label><select id=\"f-genre-select\"><option value=\"\">--</option>" + this._genreOptions("") + "</select>" +
       "<input type=\"text\" id=\"f-genre-custom\" placeholder=\"Enter genre...\" autocomplete=\"off\" style=\"margin-top:6px;display:none;\"/></div>" +
       "<div><label>Rating</label>" +
@@ -317,7 +467,13 @@ class VinylCollectionCard extends HTMLElement {
       "<span class=\"star\" data-v=\"4\">&#9733;</span>" +
       "<span class=\"star\" data-v=\"5\">&#9733;</span>" +
       "</div></div>" +
-      "<div><label>Notes</label><textarea id=\"f-notes\"></textarea></div>" +
+      "</div>" +
+      "</div>" +
+      "<input type=\"hidden\" id=\"f-label\"/>" +
+      "<input type=\"hidden\" id=\"f-catalog-number\"/>" +
+      "<input type=\"hidden\" id=\"f-discogs-id\"/>" +
+      "<input type=\"hidden\" id=\"f-cover-url\"/>" +
+      "<input type=\"hidden\" id=\"f-spotify-uri\"/>" +
       "<div class=\"dialog-error\" id=\"dialog-error\"></div>" +
       "<div class=\"dialog-actions\">" +
       "<button class=\"btn btn-cancel\" id=\"dialog-cancel\">Cancel</button>" +
@@ -371,6 +527,16 @@ class VinylCollectionCard extends HTMLElement {
       }
     });
 
+    root.querySelector("#discogs-search-input").addEventListener("input", e => {
+      const val = e.target.value.trim();
+      clearTimeout(this._discogsSearchTimeout);
+      if (val.length < 3) {
+        this.shadowRoot.querySelector("#discogs-results").style.display = "none";
+        return;
+      }
+      this._discogsSearchTimeout = setTimeout(() => this._doDiscogsSearch(), 500);
+    });
+
     root.querySelector("#dialog-save").addEventListener("click", () => this._onSave());
     root.querySelector("#dialog-cancel").addEventListener("click", () => this._closeDialog());
     root.querySelector("#dialog-overlay").addEventListener("click", e => {
@@ -398,12 +564,31 @@ class VinylCollectionCard extends HTMLElement {
     root.querySelector("#dialog-error").style.display = "none";
     root.querySelector("#artist-suggestions").style.display = "none";
 
+    const discogsSection = root.querySelector("#discogs-section");
+    const discogsDisabledNotice = root.querySelector("#discogs-disabled-notice");
+    const discogsActive = !isEdit && this._discogsEnabled;
+    discogsSection.style.display = discogsActive ? "block" : "none";
+    if (discogsDisabledNotice) discogsDisabledNotice.style.display = (!isEdit && !this._discogsEnabled) ? "block" : "none";
+
+    if (!isEdit) {
+      const hasToken = this._hasDiscogsToken === true;
+      const searchInput = root.querySelector("#discogs-search-input");
+      const hint = root.querySelector("#discogs-hint");
+      searchInput.disabled = !hasToken;
+      searchInput.placeholder = "Search for your record (powered by Discogs)";
+      searchInput.value = "";
+      if (hint) hint.style.display = hasToken ? "none" : "block";
+      root.querySelector("#discogs-results").style.display = "none";
+    }
+
     root.querySelector("#f-artist").value = r.artist || "";
     root.querySelector("#f-album").value = r.album || "";
     root.querySelector("#f-year").value = r.year || "";
-    root.querySelector("#f-notes").value = r.notes || "";
-    root.querySelector("#f-format").value = r.format || "";
-    root.querySelector("#f-condition").value = r.condition || "";
+    root.querySelector("#f-label").value = r.label || "";
+    root.querySelector("#f-catalog-number").value = r.catalog_number || "";
+    root.querySelector("#f-discogs-id").value = r.discogs_id || "";
+    root.querySelector("#f-cover-url").value = r.cover_url || "";
+    root.querySelector("#f-spotify-uri").value = r.spotify_uri || "";
 
     const genreSelect = root.querySelector("#f-genre-select");
     const genreCustom = root.querySelector("#f-genre-custom");
@@ -419,6 +604,7 @@ class VinylCollectionCard extends HTMLElement {
       genreCustom.style.display = "none";
     }
 
+    this._renderCoverPreview();
     this._setSaving(false);
     this._updateStars();
   }
@@ -448,12 +634,6 @@ class VinylCollectionCard extends HTMLElement {
     const year = root.querySelector("#f-year").value;
     if (year) data.year = parseInt(year);
 
-    const fmt = root.querySelector("#f-format").value;
-    if (fmt) data.format = fmt;
-
-    const cond = root.querySelector("#f-condition").value;
-    if (cond) data.condition = cond;
-
     const genreSelect = root.querySelector("#f-genre-select").value;
     const genreCustom = root.querySelector("#f-genre-custom").value.trim();
     const genre = genreSelect === "__custom__" ? genreCustom : genreSelect;
@@ -461,8 +641,20 @@ class VinylCollectionCard extends HTMLElement {
 
     if (this._modalRating) data.rating = this._modalRating;
 
-    const notes = root.querySelector("#f-notes").value.trim();
-    if (notes) data.notes = notes;
+    const label = root.querySelector("#f-label").value.trim();
+    if (label) data.label = label;
+
+    const catalogNumber = root.querySelector("#f-catalog-number").value.trim();
+    if (catalogNumber) data.catalog_number = catalogNumber;
+
+    const discogsId = root.querySelector("#f-discogs-id").value.trim();
+    if (discogsId) data.discogs_id = discogsId;
+
+    const coverUrl = root.querySelector("#f-cover-url").value.trim();
+    if (coverUrl) data.cover_url = coverUrl;
+
+    const spotifyUri = root.querySelector("#f-spotify-uri").value.trim();
+    if (spotifyUri) data.spotify_uri = spotifyUri;
 
     this._saveRecord(data);
   }
@@ -482,25 +674,23 @@ class VinylCollectionCard extends HTMLElement {
     });
 
     if (records.length === 0) {
-      tbody.innerHTML = "<tr><td colspan=\"9\" class=\"empty\">No records found</td></tr>";
+      tbody.innerHTML = "<tr><td colspan=\"7\" class=\"empty\">No records found</td></tr>";
       return;
     }
 
     tbody.innerHTML = records.map(r =>
       "<tr>" +
+      "<td class=\"cover-cell\">" + this._coverHTML(r.cover_url, 40) + "</td>" +
       "<td>" + this._esc(r.artist) + "</td>" +
       "<td>" + this._esc(r.album) + "</td>" +
       "<td>" + this._esc(r.year || "") + "</td>" +
-      "<td>" + this._esc(r.format || "") + "</td>" +
-      "<td>" + this._esc(r.condition || "") + "</td>" +
       "<td>" + this._starsHTML(r.rating || 0) + "</td>" +
       "<td>" + this._esc(r.genre || "") + "</td>" +
-      "<td>" + this._esc(r.notes || "") + "</td>" +
       "<td class=\"actions\">" +
-      "<button class=\"icon-btn edit\" data-id=\"" + r.record_id + "\" data-action=\"edit\" title=\"Edit\">" +
+      "<button class=\"icon-btn\" data-id=\"" + r.record_id + "\" data-action=\"edit\" title=\"Edit\">" +
       "<ha-icon icon=\"mdi:pencil\"></ha-icon>" +
       "</button>" +
-      "<button class=\"icon-btn del\" data-id=\"" + r.record_id + "\" data-action=\"delete\" title=\"Delete\">" +
+      "<button class=\"icon-btn\" data-id=\"" + r.record_id + "\" data-action=\"delete\" title=\"Delete\">" +
       "<ha-icon icon=\"mdi:delete\"></ha-icon>" +
       "</button>" +
       "</td>" +

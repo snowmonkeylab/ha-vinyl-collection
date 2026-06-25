@@ -23,44 +23,11 @@ add_record:
           min: 1900
           max: 2100
           mode: box
-    format:
-      name: Format
-      required: false
-      selector:
-        select:
-          options:
-            - "LP"
-            - "12\""
-            - "10\""
-            - "7\""
-            - "Box Set"
-            - "Picture Disc"
-          custom_value: true
-    condition:
-      name: Condition
-      required: false
-      selector:
-        select:
-          options:
-            - "Mint (M)"
-            - "Near Mint (NM)"
-            - "Very Good Plus (VG+)"
-            - "Very Good (VG)"
-            - "Good (G)"
-            - "Fair"
-            - "Poor"
-          custom_value: true
     genre:
       name: Genre
       required: false
       selector:
         text:
-    notes:
-      name: Notes
-      required: false
-      selector:
-        text:
-          multiline: true
     rating:
       name: Rating
       required: false
@@ -76,6 +43,11 @@ add_record:
         text:
     cover_url:
       name: Cover Art URL
+      required: false
+      selector:
+        text:
+    spotify_uri:
+      name: Spotify URI
       required: false
       selector:
         text:
@@ -117,27 +89,11 @@ update_record:
           min: 1900
           max: 2100
           mode: box
-    format:
-      name: Format
-      required: false
-      selector:
-        text:
-    condition:
-      name: Condition
-      required: false
-      selector:
-        text:
     genre:
       name: Genre
       required: false
       selector:
         text:
-    notes:
-      name: Notes
-      required: false
-      selector:
-        text:
-          multiline: true
     rating:
       name: Rating
       required: false
@@ -146,6 +102,11 @@ update_record:
           min: 1
           max: 5
           mode: box
+    spotify_uri:
+      name: Spotify URI
+      required: false
+      selector:
+        text:
 
 search:
   name: Search Collection
@@ -157,3 +118,18 @@ search:
       example: "Pink Floyd"
       selector:
         text:
+
+lookup_discogs:
+  name: Lookup Discogs
+  description: Search Discogs for a release. Returns up to 8 matching results with metadata and cover art.
+  fields:
+    query:
+      name: Query
+      required: true
+      example: "Pink Floyd Dark Side of the Moon"
+      selector:
+        text:
+
+get_config:
+  name: Get Config
+  description: Returns integration configuration state, including whether Discogs is enabled and a token is set. No outbound calls made.

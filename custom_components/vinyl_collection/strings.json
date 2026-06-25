@@ -3,9 +3,15 @@
     "step": {
       "user": {
         "title": "Set up Vinyl Collection",
-        "description": "Track and search your vinyl record collection.",
         "data": {
-          "name": "Name"
+          "name": "Name",
+          "discogs_token": "Discogs API Token (optional)",
+          "discogs_enabled": "Enable Discogs integration"
+        },
+        "data_description": {
+          "name": "A name for your collection.",
+          "discogs_token": "Required when Discogs is enabled. Generate a free personal token at discogs.com/settings/developers. You can add or update this later via Configure.",
+          "discogs_enabled": "Allow the card to search Discogs for records and fetch cover art."
         }
       }
     },
@@ -16,7 +22,15 @@
   "options": {
     "step": {
       "init": {
-        "title": "Vinyl Collection Options"
+        "title": "Vinyl Collection Options",
+        "data": {
+          "discogs_token": "Discogs API Token",
+          "discogs_enabled": "Enable Discogs integration"
+        },
+        "data_description": {
+          "discogs_token": "Required when Discogs is enabled. Generate a free personal token at discogs.com/settings/developers.",
+          "discogs_enabled": "Allow the card to search Discogs for records and fetch cover art."
+        }
       }
     }
   }

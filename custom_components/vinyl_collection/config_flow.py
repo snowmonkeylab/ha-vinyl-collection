@@ -7,8 +7,9 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers.selector import BooleanSelector
 
-from .const import CONF_NAME, DEFAULT_NAME, DOMAIN
+from .const import CONF_DISCOGS_ENABLED, CONF_DISCOGS_TOKEN, CONF_NAME, DEFAULT_NAME, DOMAIN
 
 
 class VinylCollectionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -20,7 +21,6 @@ class VinylCollectionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle the initial setup step."""
-        # Only allow a single instance - this is a personal collection tracker
         if self._async_current_entries():
             return self.async_abort(reason="single_instance_allowed")
 
@@ -32,23 +32,25 @@ class VinylCollectionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data_schema = vol.Schema(
             {
                 vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
+                vol.Optional(CONF_DISCOGS_TOKEN, default=""): str,
+                vol.Optional(CONF_DISCOGS_ENABLED, default=True): BooleanSelector(),
             }
         )
-        return self.async_show_form(step_id="user", data_schema=data_schema)
+        return self.async_show_form(
+            step_id="user",
+            data_schema=data_schema,
+        )
 
     @staticmethod
     @callback
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
-        return VinylCollectionOptionsFlow(config_entry)
+        return VinylCollectionOptionsFlow()
 
 
 class VinylCollectionOptionsFlow(config_entries.OptionsFlow):
-    """Options flow - reserved for future settings (e.g. Discogs API key)."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self.config_entry = config_entry
+    """Options flow for updating the Discogs token."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -56,4 +58,21 @@ class VinylCollectionOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        return self.async_show_form(step_id="init", data_schema=vol.Schema({}))
+        current_token = (
+            self.config_entry.options.get(CONF_DISCOGS_TOKEN)
+            or self.config_entry.data.get(CONF_DISCOGS_TOKEN, "")
+        )
+        current_enabled = self.config_entry.options.get(
+            CONF_DISCOGS_ENABLED,
+            self.config_entry.data.get(CONF_DISCOGS_ENABLED, True),
+        )
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(CONF_DISCOGS_TOKEN, default=current_token): str,
+                    vol.Optional(CONF_DISCOGS_ENABLED, default=current_enabled): bool,
+                }
+            ),
+        )

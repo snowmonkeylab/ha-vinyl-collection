@@ -24,6 +24,8 @@ class VinylCollectionCard extends HTMLElement {
     this._sortCol = "artist";
     this._sortDir = 1;
     this._deleteId = null;
+    this._loading = false;
+    this._saving = false;
   }
 
   setConfig(config) { this._config = config || {}; }
@@ -44,13 +46,32 @@ class VinylCollectionCard extends HTMLElement {
   }
 
   async _search(query) {
+    this._setLoading(true);
     try {
       const r = await this._call("search", { query });
       this._records = r.response.results || [];
     } catch (e) {
       this._records = [];
     }
+    this._setLoading(false);
     this._renderTable();
+  }
+
+  _setLoading(on) {
+    this._loading = on;
+    const el = this.shadowRoot.querySelector("#table-spinner");
+    if (el) el.style.display = on ? "flex" : "none";
+  }
+
+  _setSaving(on) {
+    this._saving = on;
+    const btn = this.shadowRoot.querySelector("#dialog-save");
+    const spinner = this.shadowRoot.querySelector("#save-spinner");
+    if (btn) {
+      btn.disabled = on;
+      btn.style.opacity = on ? "0.6" : "1";
+    }
+    if (spinner) spinner.style.display = on ? "inline-block" : "none";
   }
 
   _onSearchInput(v) {
@@ -59,6 +80,7 @@ class VinylCollectionCard extends HTMLElement {
   }
 
   async _saveRecord(data) {
+    this._setSaving(true);
     try {
       if (data.record_id) {
         await this._call("update_record", data);
@@ -67,22 +89,26 @@ class VinylCollectionCard extends HTMLElement {
       }
       this._closeDialog();
       const q = this.shadowRoot.querySelector("#search-input").value;
-      this._search(q);
+      await this._search(q);
     } catch (e) {
       const el = this.shadowRoot.querySelector("#dialog-error");
       if (el) { el.textContent = "Save failed: " + e.message; el.style.display = "block"; }
     }
+    this._setSaving(false);
   }
 
   async _deleteRecord(id) {
+    const btn = this.shadowRoot.querySelector("#delete-confirm");
+    if (btn) { btn.disabled = true; btn.style.opacity = "0.6"; }
     try {
       await this._call("remove_record", { record_id: id });
       this._closeDeleteDialog();
       const q = this.shadowRoot.querySelector("#search-input").value;
-      this._search(q);
+      await this._search(q);
     } catch (e) {
       this._closeDeleteDialog();
     }
+    if (btn) { btn.disabled = false; btn.style.opacity = "1"; }
   }
 
   _openDeleteDialog(id) {
@@ -161,17 +187,11 @@ class VinylCollectionCard extends HTMLElement {
   _updateArtistSuggestions(value) {
     const root = this.shadowRoot;
     const suggestions = root.querySelector("#artist-suggestions");
-    if (!value.trim()) {
-      suggestions.style.display = "none";
-      return;
-    }
+    if (!value.trim()) { suggestions.style.display = "none"; return; }
     const matches = this._uniqueArtists().filter(a =>
       a.toLowerCase().includes(value.toLowerCase()) && a.toLowerCase() !== value.toLowerCase()
     );
-    if (matches.length === 0) {
-      suggestions.style.display = "none";
-      return;
-    }
+    if (matches.length === 0) { suggestions.style.display = "none"; return; }
     suggestions.innerHTML = matches.slice(0, 6).map(a =>
       "<div class=\"suggestion\" data-value=\"" + this._esc(a) + "\">" + this._esc(a) + "</div>"
     ).join("");
@@ -198,7 +218,7 @@ class VinylCollectionCard extends HTMLElement {
       ".add-btn { padding: 0 16px; height: 36px; border-radius: 18px; border: none; background: var(--primary-color); color: var(--text-primary-color, #fff); font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap; font-family: inherit; }" +
       ".add-btn:hover { opacity: 0.9; }" +
       ".count { font-size: 12px; color: var(--secondary-text-color); margin-bottom: 8px; }" +
-      ".table-wrap { overflow-x: auto; }" +
+      ".table-wrap { overflow-x: auto; position: relative; min-height: 60px; }" +
       "table { width: 100%; border-collapse: collapse; font-size: 13px; }" +
       "thead th { text-align: left; padding: 6px 8px; font-size: 12px; color: var(--secondary-text-color); border-bottom: 1px solid var(--divider-color); cursor: pointer; user-select: none; white-space: nowrap; }" +
       "thead th:hover { color: var(--primary-text-color); }" +
@@ -216,10 +236,12 @@ class VinylCollectionCard extends HTMLElement {
       ".stars { font-size: 14px; letter-spacing: 1px; color: var(--disabled-text-color, #ccc); }" +
       ".stars .star.on { color: #f4a820; }" +
       ".empty { text-align: center; padding: 32px; color: var(--secondary-text-color); font-size: 13px; }" +
-      /* shared overlay */
+      "@keyframes spin { to { transform: rotate(360deg); } }" +
+      ".spinner { width: 24px; height: 24px; border: 3px solid var(--divider-color, #ccc); border-top-color: var(--primary-color); border-radius: 50%; animation: spin 0.7s linear infinite; }" +
+      ".spinner-wrap { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; background: var(--card-background-color, rgba(255,255,255,0.7)); z-index: 2; min-height: 60px; }" +
+      ".spinner-inline { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: none; margin-left: 8px; vertical-align: middle; }" +
       ".overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; }" +
       ".overlay.open { display: flex; }" +
-      /* main dialog */
       ".dialog { background: var(--card-background-color, #fff); color: var(--primary-text-color); border-radius: 12px; width: 90%; max-width: 460px; max-height: 90vh; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }" +
       ".dialog h3 { font-size: 18px; font-weight: 500; }" +
       "label { display: block; font-size: 12px; color: var(--secondary-text-color); margin-bottom: 3px; }" +
@@ -228,23 +250,21 @@ class VinylCollectionCard extends HTMLElement {
       "textarea { resize: vertical; min-height: 60px; }" +
       ".row2 { display: flex; gap: 12px; }" +
       ".row2 > div { flex: 1; }" +
-      /* artist typeahead */
       ".artist-wrap { position: relative; }" +
       ".suggestions { position: absolute; top: 100%; left: 0; right: 0; background: var(--card-background-color, #fff); border: 1px solid var(--divider-color, #ccc); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10; display: none; max-height: 200px; overflow-y: auto; }" +
       ".suggestion { padding: 8px 12px; cursor: pointer; font-size: 14px; color: var(--primary-text-color); }" +
       ".suggestion:hover { background: var(--secondary-background-color); }" +
-      /* stars */
       ".star-pick { display: flex; gap: 8px; padding: 4px 0; }" +
       ".star-pick .star { font-size: 28px; cursor: pointer; color: var(--disabled-text-color, #ccc); line-height: 1; }" +
       ".star-pick .star.on { color: #f4a820; }" +
       ".dialog-error { display: none; font-size: 13px; color: var(--error-color, #db4437); }" +
-      ".dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }" +
-      ".btn { padding: 0 16px; height: 36px; border-radius: 18px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; border: none; }" +
+      ".dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 4px; }" +
+      ".btn { padding: 0 16px; height: 36px; border-radius: 18px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; border: none; display: inline-flex; align-items: center; }" +
       ".btn-cancel { background: none; color: var(--primary-color); border: 1px solid var(--divider-color, #ccc); }" +
       ".btn-save { background: var(--primary-color); color: var(--text-primary-color, #fff); }" +
       ".btn-delete { background: var(--error-color, #db4437); color: #fff; }" +
       ".btn:hover { opacity: 0.85; }" +
-      /* delete confirm dialog */
+      ".btn:disabled { cursor: not-allowed; }" +
       ".delete-dialog { background: var(--card-background-color, #fff); color: var(--primary-text-color); border-radius: 12px; width: 90%; max-width: 360px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }" +
       ".delete-dialog h3 { font-size: 16px; font-weight: 500; }" +
       ".delete-dialog p { font-size: 14px; color: var(--secondary-text-color); line-height: 1.5; }" +
@@ -256,6 +276,7 @@ class VinylCollectionCard extends HTMLElement {
       "</div>" +
       "<div class=\"count\" id=\"count\"></div>" +
       "<div class=\"table-wrap\">" +
+      "<div class=\"spinner-wrap\" id=\"table-spinner\"><div class=\"spinner\"></div></div>" +
       "<table>" +
       "<thead id=\"thead\"><tr>" +
       "<th data-col=\"artist\">Artist<span class=\"arrow\">-</span></th>" +
@@ -272,7 +293,6 @@ class VinylCollectionCard extends HTMLElement {
       "</table>" +
       "</div>" +
       "</ha-card>" +
-      /* edit/add dialog */
       "<div class=\"overlay\" id=\"dialog-overlay\">" +
       "<div class=\"dialog\">" +
       "<h3 id=\"dialog-title\">Add Record</h3>" +
@@ -301,11 +321,10 @@ class VinylCollectionCard extends HTMLElement {
       "<div class=\"dialog-error\" id=\"dialog-error\"></div>" +
       "<div class=\"dialog-actions\">" +
       "<button class=\"btn btn-cancel\" id=\"dialog-cancel\">Cancel</button>" +
-      "<button class=\"btn btn-save\" id=\"dialog-save\">Save</button>" +
+      "<button class=\"btn btn-save\" id=\"dialog-save\">Save<span class=\"spinner-inline\" id=\"save-spinner\"></span></button>" +
       "</div>" +
       "</div>" +
       "</div>" +
-      /* delete confirm dialog */
       "<div class=\"overlay\" id=\"delete-overlay\">" +
       "<div class=\"delete-dialog\">" +
       "<h3>Remove Record</h3>" +
@@ -332,7 +351,6 @@ class VinylCollectionCard extends HTMLElement {
       });
     });
 
-    // Artist typeahead
     root.querySelector("#f-artist").addEventListener("input", e => {
       this._updateArtistSuggestions(e.target.value);
     });
@@ -343,7 +361,6 @@ class VinylCollectionCard extends HTMLElement {
       }, 150);
     });
 
-    // Genre custom toggle
     root.querySelector("#f-genre-select").addEventListener("change", e => {
       const custom = root.querySelector("#f-genre-custom");
       if (e.target.value === "__custom__") {
@@ -377,7 +394,7 @@ class VinylCollectionCard extends HTMLElement {
     const isCustomGenre = genre !== "" && !GENRES.includes(genre);
 
     root.querySelector("#dialog-title").textContent = isEdit ? "Edit Record" : "Add Record";
-    root.querySelector("#dialog-save").textContent = isEdit ? "Save Changes" : "Add to Collection";
+    root.querySelector("#dialog-save").childNodes[0].textContent = isEdit ? "Save Changes" : "Add to Collection";
     root.querySelector("#dialog-error").style.display = "none";
     root.querySelector("#artist-suggestions").style.display = "none";
 
@@ -402,6 +419,7 @@ class VinylCollectionCard extends HTMLElement {
       genreCustom.style.display = "none";
     }
 
+    this._setSaving(false);
     this._updateStars();
   }
 

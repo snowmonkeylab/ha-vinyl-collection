@@ -29,6 +29,10 @@ class VinylCollectionCard extends HTMLElement {
     this._hasDiscogsToken = null;
     this._discogsEnabled = null;
     this._selectedCoverUrl = null;
+    this._spotifyResults = [];
+    this._spotifySearching = false;
+    this._spotifySearchTimeout = null;
+    this._playPickerRecord = null;
   }
 
   setConfig(config) { this._config = config || {}; }
@@ -412,6 +416,28 @@ class VinylCollectionCard extends HTMLElement {
       ".delete-dialog { background: var(--card-background-color, #fff); color: var(--primary-text-color); border-radius: 12px; width: 90%; max-width: 360px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }" +
       ".delete-dialog h3 { font-size: 16px; font-weight: 500; }" +
       ".delete-dialog p { font-size: 14px; color: var(--secondary-text-color); line-height: 1.5; }" +
+      ".spotify-section { display: flex; flex-direction: column; gap: 6px; }" +
+      ".spotify-header { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--secondary-text-color); }" +
+      ".spotify-entity-row select { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--divider-color, #ccc); background: var(--input-fill-color, var(--secondary-background-color, #f5f5f5)); color: var(--primary-text-color); font-size: 14px; font-family: inherit; outline: none; }" +
+      ".spotify-entity-row select:focus { border-color: var(--primary-color); }" +
+      ".spotify-search-row input { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--divider-color, #ccc); background: var(--input-fill-color, var(--secondary-background-color, #f5f5f5)); color: var(--primary-text-color); font-size: 14px; font-family: inherit; outline: none; }" +
+      ".spotify-search-row input:focus { border-color: #1DB954; }" +
+      ".spotify-results { display: none; border: 1px solid var(--divider-color, #ccc); border-radius: 8px; overflow: hidden; max-height: 220px; overflow-y: auto; }" +
+      ".spotify-result { display: flex; gap: 12px; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--divider-color, #eee); align-items: center; }" +
+      ".spotify-result:last-child { border-bottom: none; }" +
+      ".spotify-result:hover { background: var(--secondary-background-color); }" +
+      ".spotify-info { flex: 1; min-width: 0; }" +
+      ".spotify-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }" +
+      ".spotify-meta { font-size: 11px; color: var(--secondary-text-color); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }" +
+      ".spotify-saved { font-size: 12px; color: #1DB954; display: none; }" +
+      ".spotify-divider { border: none; border-top: 1px solid var(--divider-color, #ccc); margin: 4px 0 0 0; }" +
+      ".play-btn { color: #1DB954; }" +
+      ".play-picker-dialog { background: var(--card-background-color, #fff); color: var(--primary-text-color); border-radius: 12px; width: 90%; max-width: 360px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); max-height: 80vh; overflow-y: auto; }" +
+      ".play-picker-dialog h3 { font-size: 16px; font-weight: 500; }" +
+      ".entity-list { display: flex; flex-direction: column; gap: 2px; }" +
+      ".entity-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; border-radius: 6px; font-size: 14px; }" +
+      ".entity-item:hover { background: var(--secondary-background-color); }" +
+      ".entity-item.last-used { font-weight: 500; }" +
       "</style>" +
       "<ha-card>" +
       "<div class=\"toolbar\">" +
@@ -446,6 +472,14 @@ class VinylCollectionCard extends HTMLElement {
       "</div>" +
       "<div class=\"discogs-results\" id=\"discogs-results\"></div>" +
       "<hr class=\"discogs-divider\"/>" +
+      "</div>" +
+      "<div class=\"spotify-section\" id=\"spotify-section\">" +
+      "<div class=\"spotify-header\"><ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;width:16px;height:16px;\"></ha-icon> Spotify</div>" +
+      "<div class=\"spotify-entity-row\"><select id=\"spotify-entity-select\"><option value=\"\">Select media player...</option></select></div>" +
+      "<div class=\"spotify-search-row\"><input type=\"text\" id=\"spotify-search-input\" placeholder=\"Search Spotify for this album...\" autocomplete=\"off\"/></div>" +
+      "<div class=\"spotify-results\" id=\"spotify-results\"></div>" +
+      "<div class=\"spotify-saved\" id=\"spotify-saved\"></div>" +
+      "<hr class=\"spotify-divider\"/>" +
       "</div>" +
       "<div class=\"cover-and-fields\">" +
       "<div class=\"cover-preview\" id=\"cover-preview\"></div>" +
@@ -488,6 +522,15 @@ class VinylCollectionCard extends HTMLElement {
       "<div class=\"dialog-actions\">" +
       "<button class=\"btn btn-cancel\" id=\"delete-cancel\">Cancel</button>" +
       "<button class=\"btn btn-delete\" id=\"delete-confirm\">Remove</button>" +
+      "</div>" +
+      "</div>" +
+      "</div>" +
+      "<div class=\"overlay\" id=\"play-picker-overlay\">" +
+      "<div class=\"play-picker-dialog\">" +
+      "<h3>Play on...</h3>" +
+      "<div class=\"entity-list\" id=\"entity-list\"></div>" +
+      "<div class=\"dialog-actions\">" +
+      "<button class=\"btn btn-cancel\" id=\"play-picker-cancel\">Cancel</button>" +
       "</div>" +
       "</div>" +
       "</div>";
@@ -550,6 +593,26 @@ class VinylCollectionCard extends HTMLElement {
     root.querySelector("#delete-overlay").addEventListener("click", e => {
       if (e.target === root.querySelector("#delete-overlay")) this._closeDeleteDialog();
     });
+
+    root.querySelector("#spotify-entity-select").addEventListener("change", e => {
+      try { localStorage.setItem("vinyl_spotify_entity", e.target.value); } catch(_) {}
+    });
+
+    root.querySelector("#spotify-search-input").addEventListener("input", e => {
+      clearTimeout(this._spotifySearchTimeout);
+      const val = e.target.value.trim();
+      if (val.length < 2) {
+        this._spotifyResults = [];
+        this._renderSpotifyResults();
+        return;
+      }
+      this._spotifySearchTimeout = setTimeout(() => this._doSpotifySearch(), 500);
+    });
+
+    root.querySelector("#play-picker-cancel").addEventListener("click", () => this._closePlayPicker());
+    root.querySelector("#play-picker-overlay").addEventListener("click", e => {
+      if (e.target === root.querySelector("#play-picker-overlay")) this._closePlayPicker();
+    });
   }
 
   _renderDialog() {
@@ -602,6 +665,28 @@ class VinylCollectionCard extends HTMLElement {
       genreSelect.value = genre;
       genreCustom.value = "";
       genreCustom.style.display = "none";
+    }
+
+    // Spotify section — always shown in both add and edit
+    const players = this._getMediaPlayers();
+    const savedEntity = (() => { try { return localStorage.getItem("vinyl_spotify_entity") || ""; } catch(_) { return ""; } })();
+    const entitySelect = root.querySelector("#spotify-entity-select");
+    entitySelect.innerHTML = "<option value=\"\">Select media player...</option>" +
+      players.map(p => "<option value=\"" + this._esc(p.entity_id) + "\"" + (p.entity_id === savedEntity ? " selected" : "") + ">" + this._esc(p.name) + "</option>").join("");
+
+    const spotifyInput = root.querySelector("#spotify-search-input");
+    const artist = r.artist || "";
+    const album = r.album || "";
+    spotifyInput.value = [artist, album].filter(Boolean).join(" ");
+
+    this._spotifyResults = [];
+    this._renderSpotifyResults();
+
+    const spotifySaved = root.querySelector("#spotify-saved");
+    const existingUri = r.spotify_uri || "";
+    if (spotifySaved) {
+      spotifySaved.textContent = existingUri ? "Linked: " + existingUri : "";
+      spotifySaved.style.display = existingUri ? "block" : "none";
     }
 
     this._renderCoverPreview();
@@ -687,6 +772,7 @@ class VinylCollectionCard extends HTMLElement {
       "<td>" + this._starsHTML(r.rating || 0) + "</td>" +
       "<td>" + this._esc(r.genre || "") + "</td>" +
       "<td class=\"actions\">" +
+      (r.spotify_uri ? "<button class=\"icon-btn play-btn\" data-id=\"" + r.record_id + "\" data-action=\"play\" title=\"Play on Spotify\"><ha-icon icon=\"mdi:spotify\"></ha-icon></button>" : "") +
       "<button class=\"icon-btn\" data-id=\"" + r.record_id + "\" data-action=\"edit\" title=\"Edit\">" +
       "<ha-icon icon=\"mdi:pencil\"></ha-icon>" +
       "</button>" +
@@ -700,13 +786,142 @@ class VinylCollectionCard extends HTMLElement {
     tbody.querySelectorAll(".icon-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         const id = btn.dataset.id;
+        const rec = this._records.find(r => r.record_id === id);
         if (btn.dataset.action === "edit") {
-          const rec = this._records.find(r => r.record_id === id);
           if (rec) this._openDialog(rec);
+        } else if (btn.dataset.action === "play") {
+          if (rec) this._openPlayPicker(rec);
         } else {
           this._openDeleteDialog(id);
         }
       });
+    });
+  }
+
+  _getMediaPlayers() {
+    if (!this._hass) return [];
+    return Object.entries(this._hass.states)
+      .filter(([id]) => id.startsWith("media_player."))
+      .map(([id, state]) => ({ entity_id: id, name: state.attributes.friendly_name || id }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async _doSpotifySearch() {
+    const root = this.shadowRoot;
+    const entityId = root.querySelector("#spotify-entity-select").value;
+    const query = root.querySelector("#spotify-search-input").value.trim();
+    if (!entityId || !query) return;
+
+    this._spotifySearching = true;
+    this._renderSpotifyResults();
+
+    try {
+      const result = await this._hass.callWS({
+        type: "media_player/browse_media",
+        entity_id: entityId,
+        media_content_id: "spotify:search:" + query,
+        media_content_type: "search",
+      });
+
+      let items = result.children || [];
+      // Results may be grouped into categories (Albums, Tracks, etc.) — flatten
+      if (items.length && items[0] && Array.isArray(items[0].children)) {
+        const albumCat = items.find(c => (c.title || "").toLowerCase().includes("album"));
+        items = albumCat ? albumCat.children : items.flatMap(c => c.children || []);
+      }
+      const albumItems = items.filter(i =>
+        i.media_content_type === "album" || (i.media_content_id || "").startsWith("spotify:album:")
+      );
+      this._spotifyResults = (albumItems.length ? albumItems : items).slice(0, 8);
+    } catch (_) {
+      this._spotifyResults = [];
+    }
+
+    this._spotifySearching = false;
+    this._renderSpotifyResults();
+  }
+
+  _renderSpotifyResults() {
+    const container = this.shadowRoot.querySelector("#spotify-results");
+    if (!container) return;
+
+    if (this._spotifySearching) {
+      container.innerHTML =
+        "<div style=\"display:flex;align-items:center;gap:8px;padding:12px;color:var(--secondary-text-color);font-size:13px;\">" +
+        "<div class=\"spinner\" style=\"width:16px;height:16px;border-width:2px;\"></div>Searching Spotify...</div>";
+      container.style.display = "block";
+      return;
+    }
+
+    if (!this._spotifyResults.length) { container.style.display = "none"; return; }
+
+    container.innerHTML = this._spotifyResults.map((r, i) =>
+      "<div class=\"spotify-result\" data-index=\"" + i + "\">" +
+      "<div style=\"flex-shrink:0;\">" + (r.thumbnail
+        ? "<img src=\"" + this._esc(r.thumbnail) + "\" width=\"48\" height=\"48\" style=\"border-radius:4px;object-fit:cover;display:block;\"/>"
+        : "<ha-icon icon=\"mdi:music\" style=\"width:48px;height:48px;color:var(--secondary-text-color);\"></ha-icon>") + "</div>" +
+      "<div class=\"spotify-info\">" +
+      "<div class=\"spotify-title\">" + this._esc(r.title || "") + "</div>" +
+      "<div class=\"spotify-meta\">" + this._esc(r.media_content_id || "") + "</div>" +
+      "</div></div>"
+    ).join("");
+    container.style.display = "block";
+
+    container.querySelectorAll(".spotify-result").forEach(el => {
+      el.addEventListener("click", () => this._applySpotifyResult(this._spotifyResults[parseInt(el.dataset.index)]));
+    });
+  }
+
+  _applySpotifyResult(result) {
+    const root = this.shadowRoot;
+    const uri = result.media_content_id || "";
+    root.querySelector("#f-spotify-uri").value = uri;
+    this._spotifyResults = [];
+    this._renderSpotifyResults();
+    const saved = root.querySelector("#spotify-saved");
+    if (saved) { saved.textContent = "Linked: " + uri; saved.style.display = "block"; }
+  }
+
+  _openPlayPicker(record) {
+    this._playPickerRecord = record;
+    const list = this.shadowRoot.querySelector("#entity-list");
+    const players = this._getMediaPlayers();
+    const lastUsed = (() => { try { return localStorage.getItem("vinyl_spotify_entity") || ""; } catch(_) { return ""; } })();
+
+    if (!players.length) {
+      list.innerHTML = "<div style=\"padding:12px;color:var(--secondary-text-color);font-size:13px;\">No media player entities found.</div>";
+    } else {
+      list.innerHTML = players.map(p =>
+        "<div class=\"entity-item" + (p.entity_id === lastUsed ? " last-used" : "") + "\" data-entity=\"" + this._esc(p.entity_id) + "\">" +
+        "<ha-icon icon=\"mdi:speaker\" style=\"width:20px;height:20px;flex-shrink:0;\"></ha-icon>" +
+        this._esc(p.name) + "</div>"
+      ).join("");
+      list.querySelectorAll(".entity-item").forEach(el => {
+        el.addEventListener("click", () => {
+          this._playRecord(el.dataset.entity, this._playPickerRecord);
+          this._closePlayPicker();
+        });
+      });
+    }
+    this.shadowRoot.querySelector("#play-picker-overlay").classList.add("open");
+  }
+
+  _closePlayPicker() {
+    this.shadowRoot.querySelector("#play-picker-overlay").classList.remove("open");
+    this._playPickerRecord = null;
+  }
+
+  _playRecord(entityId, record) {
+    try { localStorage.setItem("vinyl_spotify_entity", entityId); } catch(_) {}
+    const uri = record.spotify_uri || "";
+    const contentType = uri.startsWith("spotify:album:") ? "album"
+      : uri.startsWith("spotify:track:") ? "track"
+      : uri.startsWith("spotify:playlist:") ? "playlist"
+      : "music";
+    this._hass.callService("media_player", "play_media", {
+      entity_id: entityId,
+      media_content_id: uri,
+      media_content_type: contentType,
     });
   }
 

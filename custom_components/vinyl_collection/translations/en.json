@@ -6,12 +6,14 @@
         "data": {
           "name": "Name",
           "discogs_token": "Discogs API Token (optional)",
-          "discogs_enabled": "Enable Discogs integration"
+          "discogs_enabled": "Enable Discogs integration",
+          "spotify_enabled": "Enable Spotify integration"
         },
         "data_description": {
           "name": "A name for your collection.",
           "discogs_token": "Required when Discogs is enabled. Generate a free personal token at discogs.com/settings/developers. You can add or update this later via Configure.",
-          "discogs_enabled": "Allow the card to search Discogs for records and fetch cover art."
+          "discogs_enabled": "Allow the card to search Discogs for records and fetch cover art.",
+          "spotify_enabled": "Allow the card to search Spotify and play records. Requires the Home Assistant Spotify integration to be set up."
         }
       }
     },
@@ -25,11 +27,13 @@
         "title": "Vinyl Collection Options",
         "data": {
           "discogs_token": "Discogs API Token",
-          "discogs_enabled": "Enable Discogs integration"
+          "discogs_enabled": "Enable Discogs integration",
+          "spotify_enabled": "Enable Spotify integration"
         },
         "data_description": {
           "discogs_token": "Required when Discogs is enabled. Generate a free personal token at discogs.com/settings/developers.",
-          "discogs_enabled": "Allow the card to search Discogs for records and fetch cover art."
+          "discogs_enabled": "Allow the card to search Discogs for records and fetch cover art.",
+          "spotify_enabled": "Allow the card to search Spotify and play records. Requires the Home Assistant Spotify integration to be set up."
         }
       }
     }

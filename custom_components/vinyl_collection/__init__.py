@@ -2,15 +2,18 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 import aiohttp
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.storage import Store
 
 from .const import (
     ATTR_ALBUM,
@@ -27,6 +30,7 @@ from .const import (
     ATTR_YEAR,
     CONF_DISCOGS_ENABLED,
     CONF_DISCOGS_TOKEN,
+    CONF_SPOTIFY_ENABLED,
     DOMAIN,
     EVENT_RECORD_ADDED,
     EVENT_RECORD_REMOVED,
@@ -43,6 +47,8 @@ from .store import VinylCollectionStore
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = ["sensor"]
+CARD_URL = "/vinyl_collection_frontend/vinyl-collection-card.js"
+CARD_PATH = Path(__file__).parent / "vinyl-collection-card.js"
 
 DISCOGS_SEARCH_URL = "https://api.discogs.com/database/search"
 DISCOGS_USER_AGENT = "ha-vinyl-collection/1.0 +https://github.com/snowmonkeylab/ha-vinyl-collection"
@@ -86,6 +92,37 @@ GET_CONFIG_SCHEMA = vol.Schema({})
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Vinyl Collection from a config entry."""
     hass.data.setdefault(DOMAIN, {})
+
+    if not hass.data[DOMAIN].get("_frontend_registered"):
+        try:
+            from homeassistant.components.http import StaticPathConfig
+            await hass.http.async_register_static_paths(
+                [StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=False)]
+            )
+        except (ImportError, AttributeError):
+            hass.http.register_static_path(CARD_URL, str(CARD_PATH), cache_headers=False)
+
+        hass.data[DOMAIN]["_frontend_registered"] = True
+
+    async def _async_register_lovelace_resource(_event=None) -> None:
+        """Add the card to Lovelace resources storage if not already present."""
+        try:
+            import time
+            store = Store(hass, 1, "lovelace_resources")
+            data = await store.async_load() or {"items": []}
+            items = data.setdefault("items", [])
+            if any(item.get("url") == CARD_URL for item in items):
+                return
+            items.append({"id": str(int(time.time() * 1000)), "type": "module", "url": CARD_URL})
+            await store.async_save(data)
+            _LOGGER.info("Vinyl Collection: registered card as Lovelace resource — reload the browser to activate it")
+        except Exception as err:
+            _LOGGER.warning("Vinyl Collection: could not register card resource (%s) — add %s manually as a module resource", err, CARD_URL)
+
+    if hass.is_running:
+        await _async_register_lovelace_resource()
+    else:
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _async_register_lovelace_resource)
 
     store = VinylCollectionStore(hass)
     try:
@@ -133,6 +170,13 @@ def _is_discogs_enabled(entry: ConfigEntry) -> bool:
     """Return True if Discogs integration is toggled on."""
     return bool(
         entry.options.get(CONF_DISCOGS_ENABLED, entry.data.get(CONF_DISCOGS_ENABLED, True))
+    )
+
+
+def _is_spotify_enabled(entry: ConfigEntry) -> bool:
+    """Return True if Spotify integration is toggled on."""
+    return bool(
+        entry.options.get(CONF_SPOTIFY_ENABLED, entry.data.get(CONF_SPOTIFY_ENABLED, False))
     )
 
 
@@ -203,6 +247,7 @@ def _register_services(
         return {
             "has_discogs_token": token is not None,
             "discogs_enabled": _is_discogs_enabled(entry),
+            "spotify_enabled": _is_spotify_enabled(entry),
         }
 
     async def handle_lookup_discogs(call: ServiceCall) -> ServiceResponse:

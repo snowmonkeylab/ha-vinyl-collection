@@ -7,6 +7,7 @@ STORAGE_VERSION = 1
 CONF_NAME = "name"
 CONF_DISCOGS_TOKEN = "discogs_token"
 CONF_DISCOGS_ENABLED = "discogs_enabled"
+CONF_SPOTIFY_ENABLED = "spotify_enabled"
 DEFAULT_NAME = "Vinyl Collection"
 
 # Service names

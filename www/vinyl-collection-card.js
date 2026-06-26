@@ -825,6 +825,7 @@ class VinylCollectionCard extends HTMLElement {
         type: "media_player/browse_media",
         entity_id: entityId,
         media_content_id: "spotify:search:" + query,
+        media_content_type: "search",
       });
 
       let items = result.children || [];

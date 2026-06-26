@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 import aiohttp
 import voluptuous as vol
+from homeassistant.components.frontend import async_register_extra_module_url
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
@@ -44,6 +46,8 @@ from .store import VinylCollectionStore
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = ["sensor"]
+CARD_URL = "/vinyl_collection_frontend/vinyl-collection-card.js"
+CARD_PATH = Path(__file__).parent / "vinyl-collection-card.js"
 
 DISCOGS_SEARCH_URL = "https://api.discogs.com/database/search"
 DISCOGS_USER_AGENT = "ha-vinyl-collection/1.0 +https://github.com/snowmonkeylab/ha-vinyl-collection"
@@ -87,6 +91,11 @@ GET_CONFIG_SCHEMA = vol.Schema({})
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Vinyl Collection from a config entry."""
     hass.data.setdefault(DOMAIN, {})
+
+    if not hass.data[DOMAIN].get("_frontend_registered"):
+        hass.http.register_static_path(CARD_URL, str(CARD_PATH), cache_headers=False)
+        async_register_extra_module_url(hass, CARD_URL)
+        hass.data[DOMAIN]["_frontend_registered"] = True
 
     store = VinylCollectionStore(hass)
     try:

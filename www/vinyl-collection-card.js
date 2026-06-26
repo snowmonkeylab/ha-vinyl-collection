@@ -828,10 +828,7 @@ class VinylCollectionCard extends HTMLElement {
       });
 
       const items = result.result || result.children || [];
-      if (items.length) console.log("[vinyl] first result:", JSON.stringify(items[0]));
-      const albums = items.filter(i =>
-        i.media_content_type === "album" || (i.media_content_id || "").startsWith("spotify:album:")
-      );
+      const albums = items.filter(i => i.media_class === "album");
       this._spotifyResults = (albums.length ? albums : items).slice(0, 8);
       this._spotifyError = items.length === 0
         ? "No results. Check the media player selected is your Spotify player."

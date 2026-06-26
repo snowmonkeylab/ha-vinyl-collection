@@ -828,6 +828,7 @@ class VinylCollectionCard extends HTMLElement {
       });
 
       const items = result.result || result.children || [];
+      if (items.length) console.log("[vinyl] first result:", JSON.stringify(items[0]));
       const albums = items.filter(i =>
         i.media_content_type === "album" || (i.media_content_id || "").startsWith("spotify:album:")
       );

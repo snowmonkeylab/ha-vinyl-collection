@@ -820,11 +820,11 @@ class VinylCollectionCard extends HTMLElement {
         type: "media_player/browse_media",
         entity_id: entityId,
         media_content_id: "spotify:search:" + query,
-        media_content_type: "search",
       });
 
+      console.log("[vinyl] spotify browse_media result:", JSON.stringify(result, null, 2));
+
       let items = result.children || [];
-      // Results may be grouped into categories (Albums, Tracks, etc.) — flatten
       if (items.length && items[0] && Array.isArray(items[0].children)) {
         const albumCat = items.find(c => (c.title || "").toLowerCase().includes("album"));
         items = albumCat ? albumCat.children : items.flatMap(c => c.children || []);
@@ -833,7 +833,8 @@ class VinylCollectionCard extends HTMLElement {
         i.media_content_type === "album" || (i.media_content_id || "").startsWith("spotify:album:")
       );
       this._spotifyResults = (albumItems.length ? albumItems : items).slice(0, 8);
-    } catch (_) {
+    } catch (err) {
+      console.error("[vinyl] spotify search error:", err);
       this._spotifyResults = [];
     }
 

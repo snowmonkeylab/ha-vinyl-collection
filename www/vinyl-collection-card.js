@@ -822,17 +822,13 @@ class VinylCollectionCard extends HTMLElement {
 
     try {
       const result = await this._hass.callWS({
-        type: "media_player/browse_media",
+        type: "media_player/search_media",
         entity_id: entityId,
-        media_content_id: "spotify:search:" + query,
-        media_content_type: "search",
+        media_content_type: "album",
+        search_query: query,
       });
 
-      let items = result.children || [];
-      // If results are grouped into categories, flatten them
-      if (items.length && items[0] && Array.isArray(items[0].children)) {
-        items = items.flatMap(c => c.children || []);
-      }
+      const items = result.result || result.children || [];
       this._spotifyResults = items.slice(0, 8);
       this._spotifyError = items.length === 0
         ? "No results. Check the media player selected is your Spotify player."

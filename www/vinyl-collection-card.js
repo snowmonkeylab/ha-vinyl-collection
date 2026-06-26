@@ -824,7 +824,6 @@ class VinylCollectionCard extends HTMLElement {
       const result = await this._hass.callWS({
         type: "media_player/search_media",
         entity_id: entityId,
-        media_content_type: "album",
         search_query: query,
       });
 

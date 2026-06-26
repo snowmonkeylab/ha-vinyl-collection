@@ -64,8 +64,20 @@ class VinylCollectionCard extends HTMLElement {
     } catch (e) {
       this._hasDiscogsToken = false;
       this._discogsEnabled = false;
-      this._spotifyEnabled = false;
+      this._spotifyEnabled = true;
     }
+  }
+
+  _hasSpotifyIntegration() {
+    return !!(this._hass && this._hass.config && (this._hass.config.components || []).includes("spotify"));
+  }
+
+  _getSpotifyPlayers() {
+    if (!this._hass) return [];
+    return Object.entries(this._hass.states)
+      .filter(([id]) => id.startsWith("media_player.") && id.toLowerCase().includes("spotify"))
+      .map(([id, state]) => ({ entity_id: id, name: state.attributes.friendly_name || id }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   async _call(service, data) {
@@ -480,9 +492,8 @@ class VinylCollectionCard extends HTMLElement {
       "<div class=\"spotify-disabled-notice\" id=\"spotify-disabled-notice\">You can enable Spotify search and playback. To do this, navigate to Settings → Devices &amp; Services → Vinyl Collection → Configure.</div>" +
       "<div class=\"spotify-section\" id=\"spotify-section\">" +
       "<div class=\"spotify-header\"><ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;\"></ha-icon><span>Spotify</span></div>" +
-      "<div class=\"spotify-search-row\" style=\"display:flex;gap:8px;\">" +
-      "<input type=\"text\" id=\"spotify-search-input\" placeholder=\"Search Spotify for this album...\" autocomplete=\"off\" style=\"flex:1;\"/>" +
-      "<button class=\"btn btn-save\" id=\"spotify-search-btn\" style=\"white-space:nowrap;height:36px;padding:0 12px;\">Search</button>" +
+      "<div class=\"spotify-search-row\">" +
+      "<input type=\"text\" id=\"spotify-search-input\" placeholder=\"Search Spotify for this album...\" autocomplete=\"off\"/>" +
       "</div>" +
       "<div class=\"spotify-results\" id=\"spotify-results\"></div>" +
       "<div class=\"spotify-saved\" id=\"spotify-saved\"></div>" +
@@ -613,8 +624,6 @@ class VinylCollectionCard extends HTMLElement {
       this._spotifySearchTimeout = setTimeout(() => this._doSpotifySearch(), 500);
     });
 
-    root.querySelector("#spotify-search-btn").addEventListener("click", () => this._doSpotifySearch());
-
     root.querySelector("#play-picker-cancel").addEventListener("click", () => this._closePlayPicker());
     root.querySelector("#play-picker-overlay").addEventListener("click", e => {
       if (e.target === root.querySelector("#play-picker-overlay")) this._closePlayPicker();
@@ -673,11 +682,12 @@ class VinylCollectionCard extends HTMLElement {
       genreCustom.style.display = "none";
     }
 
-    // Spotify section
+    // Spotify section — only relevant if Spotify integration is installed
     const spotifySection = root.querySelector("#spotify-section");
     const spotifyDisabledNotice = root.querySelector("#spotify-disabled-notice");
-    if (spotifySection) spotifySection.style.display = this._spotifyEnabled ? "flex" : "none";
-    if (spotifyDisabledNotice) spotifyDisabledNotice.style.display = (!this._spotifyEnabled) ? "block" : "none";
+    const spotifyInstalled = this._hasSpotifyIntegration();
+    if (spotifySection) spotifySection.style.display = (spotifyInstalled && this._spotifyEnabled) ? "flex" : "none";
+    if (spotifyDisabledNotice) spotifyDisabledNotice.style.display = (spotifyInstalled && !this._spotifyEnabled) ? "block" : "none";
 
     const spotifyInput = root.querySelector("#spotify-search-input");
     const artist = r.artist || "";
@@ -818,12 +828,11 @@ class VinylCollectionCard extends HTMLElement {
 
     let entityId = (() => { try { return localStorage.getItem("vinyl_spotify_entity") || ""; } catch(_) { return ""; } })();
     if (!entityId) {
-      const players = this._getMediaPlayers();
-      const spotify = players.find(p => p.entity_id.toLowerCase().includes("spotify"));
-      entityId = spotify ? spotify.entity_id : (players[0] ? players[0].entity_id : "");
+      const spotifyPlayers = this._getSpotifyPlayers();
+      entityId = spotifyPlayers.length ? spotifyPlayers[0].entity_id : "";
     }
     if (!entityId) {
-      this._spotifyError = "No media player found. Play a record first to set your player.";
+      this._spotifyError = "No Spotify media player found.";
       this._spotifyResults = [];
       this._spotifySearching = false;
       this._renderSpotifyResults();

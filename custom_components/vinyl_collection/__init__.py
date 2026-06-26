@@ -7,12 +7,13 @@ from typing import Any
 
 import aiohttp
 import voluptuous as vol
-from homeassistant.components.frontend import async_register_extra_module_url
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.storage import Store
 
 from .const import (
     ATTR_ALBUM,
@@ -93,9 +94,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
     if not hass.data[DOMAIN].get("_frontend_registered"):
-        hass.http.register_static_path(CARD_URL, str(CARD_PATH), cache_headers=False)
-        async_register_extra_module_url(hass, CARD_URL)
+        try:
+            from homeassistant.components.http import StaticPathConfig
+            await hass.http.async_register_static_paths(
+                [StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=False)]
+            )
+        except (ImportError, AttributeError):
+            hass.http.register_static_path(CARD_URL, str(CARD_PATH), cache_headers=False)
+
         hass.data[DOMAIN]["_frontend_registered"] = True
+
+    async def _async_register_lovelace_resource(_event=None) -> None:
+        """Add the card to Lovelace resources storage if not already present."""
+        try:
+            import time
+            store = Store(hass, 1, "lovelace_resources")
+            data = await store.async_load() or {"items": []}
+            items = data.setdefault("items", [])
+            if any(item.get("url") == CARD_URL for item in items):
+                return
+            items.append({"id": str(int(time.time() * 1000)), "type": "module", "url": CARD_URL})
+            await store.async_save(data)
+            _LOGGER.info("Vinyl Collection: registered card as Lovelace resource — reload the browser to activate it")
+        except Exception as err:
+            _LOGGER.warning("Vinyl Collection: could not register card resource (%s) — add %s manually as a module resource", err, CARD_URL)
+
+    if hass.is_running:
+        await _async_register_lovelace_resource()
+    else:
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _async_register_lovelace_resource)
 
     store = VinylCollectionStore(hass)
     try:

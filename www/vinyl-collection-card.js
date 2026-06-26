@@ -476,7 +476,10 @@ class VinylCollectionCard extends HTMLElement {
       "<div class=\"spotify-section\" id=\"spotify-section\">" +
       "<div class=\"spotify-header\"><ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;width:16px;height:16px;\"></ha-icon> Spotify</div>" +
       "<div class=\"spotify-entity-row\"><select id=\"spotify-entity-select\"><option value=\"\">Select media player...</option></select></div>" +
-      "<div class=\"spotify-search-row\"><input type=\"text\" id=\"spotify-search-input\" placeholder=\"Search Spotify for this album...\" autocomplete=\"off\"/></div>" +
+      "<div class=\"spotify-search-row\" style=\"display:flex;gap:8px;\">" +
+      "<input type=\"text\" id=\"spotify-search-input\" placeholder=\"Search Spotify for this album...\" autocomplete=\"off\" style=\"flex:1;\"/>" +
+      "<button class=\"btn btn-save\" id=\"spotify-search-btn\" style=\"white-space:nowrap;height:36px;padding:0 12px;\">Search</button>" +
+      "</div>" +
       "<div class=\"spotify-results\" id=\"spotify-results\"></div>" +
       "<div class=\"spotify-saved\" id=\"spotify-saved\"></div>" +
       "<hr class=\"spotify-divider\"/>" +
@@ -608,6 +611,8 @@ class VinylCollectionCard extends HTMLElement {
       }
       this._spotifySearchTimeout = setTimeout(() => this._doSpotifySearch(), 500);
     });
+
+    root.querySelector("#spotify-search-btn").addEventListener("click", () => this._doSpotifySearch());
 
     root.querySelector("#play-picker-cancel").addEventListener("click", () => this._closePlayPicker());
     root.querySelector("#play-picker-overlay").addEventListener("click", e => {
@@ -819,10 +824,9 @@ class VinylCollectionCard extends HTMLElement {
       const result = await this._hass.callWS({
         type: "media_player/browse_media",
         entity_id: entityId,
-        media_content_id: "spotify:search:" + query,
+        media_content_id: query,
+        media_content_type: "album",
       });
-
-      console.log("[vinyl] spotify browse_media result:", JSON.stringify(result, null, 2));
 
       let items = result.children || [];
       if (items.length && items[0] && Array.isArray(items[0].children)) {
@@ -833,9 +837,10 @@ class VinylCollectionCard extends HTMLElement {
         i.media_content_type === "album" || (i.media_content_id || "").startsWith("spotify:album:")
       );
       this._spotifyResults = (albumItems.length ? albumItems : items).slice(0, 8);
+      this._spotifyError = this._spotifyResults.length === 0 ? "No results found." : null;
     } catch (err) {
-      console.error("[vinyl] spotify search error:", err);
       this._spotifyResults = [];
+      this._spotifyError = err.message || "Search failed.";
     }
 
     this._spotifySearching = false;

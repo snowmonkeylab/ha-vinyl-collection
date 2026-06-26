@@ -27,6 +27,7 @@ from .const import (
     ATTR_YEAR,
     CONF_DISCOGS_ENABLED,
     CONF_DISCOGS_TOKEN,
+    CONF_SPOTIFY_ENABLED,
     DOMAIN,
     EVENT_RECORD_ADDED,
     EVENT_RECORD_REMOVED,
@@ -136,6 +137,13 @@ def _is_discogs_enabled(entry: ConfigEntry) -> bool:
     )
 
 
+def _is_spotify_enabled(entry: ConfigEntry) -> bool:
+    """Return True if Spotify integration is toggled on."""
+    return bool(
+        entry.options.get(CONF_SPOTIFY_ENABLED, entry.data.get(CONF_SPOTIFY_ENABLED, False))
+    )
+
+
 def _register_services(
     hass: HomeAssistant, store: VinylCollectionStore, entry: ConfigEntry
 ) -> None:
@@ -203,6 +211,7 @@ def _register_services(
         return {
             "has_discogs_token": token is not None,
             "discogs_enabled": _is_discogs_enabled(entry),
+            "spotify_enabled": _is_spotify_enabled(entry),
         }
 
     async def handle_lookup_discogs(call: ServiceCall) -> ServiceResponse:

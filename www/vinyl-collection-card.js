@@ -31,7 +31,9 @@ class VinylCollectionCard extends HTMLElement {
     this._selectedCoverUrl = null;
     this._spotifyResults = [];
     this._spotifySearching = false;
+    this._spotifyError = null;
     this._spotifySearchTimeout = null;
+    this._spotifyEnabled = null;
     this._playPickerRecord = null;
   }
 
@@ -58,9 +60,11 @@ class VinylCollectionCard extends HTMLElement {
       const r = await this._call("get_config", {});
       this._hasDiscogsToken = r.response.has_discogs_token === true;
       this._discogsEnabled = r.response.discogs_enabled === true;
+      this._spotifyEnabled = r.response.spotify_enabled === true;
     } catch (e) {
       this._hasDiscogsToken = false;
       this._discogsEnabled = false;
+      this._spotifyEnabled = false;
     }
   }
 
@@ -417,9 +421,9 @@ class VinylCollectionCard extends HTMLElement {
       ".delete-dialog h3 { font-size: 16px; font-weight: 500; }" +
       ".delete-dialog p { font-size: 14px; color: var(--secondary-text-color); line-height: 1.5; }" +
       ".spotify-section { display: flex; flex-direction: column; gap: 6px; }" +
-      ".spotify-header { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--secondary-text-color); }" +
-      ".spotify-entity-row select { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--divider-color, #ccc); background: var(--input-fill-color, var(--secondary-background-color, #f5f5f5)); color: var(--primary-text-color); font-size: 14px; font-family: inherit; outline: none; }" +
-      ".spotify-entity-row select:focus { border-color: var(--primary-color); }" +
+      ".spotify-header { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--secondary-text-color); line-height: 1; }" +
+      ".spotify-header ha-icon { display: flex; align-items: center; --mdc-icon-size: 16px; width: 16px; height: 16px; }" +
+      ".spotify-disabled-notice { font-size: 13px; color: var(--secondary-text-color); background: var(--secondary-background-color, #f5f5f5); border-radius: 8px; padding: 10px 14px; line-height: 1.5; display: none; }" +
       ".spotify-search-row input { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--divider-color, #ccc); background: var(--input-fill-color, var(--secondary-background-color, #f5f5f5)); color: var(--primary-text-color); font-size: 14px; font-family: inherit; outline: none; }" +
       ".spotify-search-row input:focus { border-color: #1DB954; }" +
       ".spotify-results { display: none; border: 1px solid var(--divider-color, #ccc); border-radius: 8px; overflow: hidden; max-height: 220px; overflow-y: auto; }" +
@@ -473,9 +477,9 @@ class VinylCollectionCard extends HTMLElement {
       "<div class=\"discogs-results\" id=\"discogs-results\"></div>" +
       "<hr class=\"discogs-divider\"/>" +
       "</div>" +
+      "<div class=\"spotify-disabled-notice\" id=\"spotify-disabled-notice\">You can enable Spotify search and playback. To do this, navigate to Settings → Devices &amp; Services → Vinyl Collection → Configure.</div>" +
       "<div class=\"spotify-section\" id=\"spotify-section\">" +
-      "<div class=\"spotify-header\"><ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;width:16px;height:16px;\"></ha-icon> Spotify</div>" +
-      "<div class=\"spotify-entity-row\"><select id=\"spotify-entity-select\"><option value=\"\">Select media player...</option></select></div>" +
+      "<div class=\"spotify-header\"><ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;\"></ha-icon><span>Spotify</span></div>" +
       "<div class=\"spotify-search-row\" style=\"display:flex;gap:8px;\">" +
       "<input type=\"text\" id=\"spotify-search-input\" placeholder=\"Search Spotify for this album...\" autocomplete=\"off\" style=\"flex:1;\"/>" +
       "<button class=\"btn btn-save\" id=\"spotify-search-btn\" style=\"white-space:nowrap;height:36px;padding:0 12px;\">Search</button>" +
@@ -597,15 +601,12 @@ class VinylCollectionCard extends HTMLElement {
       if (e.target === root.querySelector("#delete-overlay")) this._closeDeleteDialog();
     });
 
-    root.querySelector("#spotify-entity-select").addEventListener("change", e => {
-      try { localStorage.setItem("vinyl_spotify_entity", e.target.value); } catch(_) {}
-    });
-
     root.querySelector("#spotify-search-input").addEventListener("input", e => {
       clearTimeout(this._spotifySearchTimeout);
       const val = e.target.value.trim();
       if (val.length < 2) {
         this._spotifyResults = [];
+        this._spotifyError = null;
         this._renderSpotifyResults();
         return;
       }
@@ -672,12 +673,11 @@ class VinylCollectionCard extends HTMLElement {
       genreCustom.style.display = "none";
     }
 
-    // Spotify section — always shown in both add and edit
-    const players = this._getMediaPlayers();
-    const savedEntity = (() => { try { return localStorage.getItem("vinyl_spotify_entity") || ""; } catch(_) { return ""; } })();
-    const entitySelect = root.querySelector("#spotify-entity-select");
-    entitySelect.innerHTML = "<option value=\"\">Select media player...</option>" +
-      players.map(p => "<option value=\"" + this._esc(p.entity_id) + "\"" + (p.entity_id === savedEntity ? " selected" : "") + ">" + this._esc(p.name) + "</option>").join("");
+    // Spotify section
+    const spotifySection = root.querySelector("#spotify-section");
+    const spotifyDisabledNotice = root.querySelector("#spotify-disabled-notice");
+    if (spotifySection) spotifySection.style.display = this._spotifyEnabled ? "flex" : "none";
+    if (spotifyDisabledNotice) spotifyDisabledNotice.style.display = (!this._spotifyEnabled) ? "block" : "none";
 
     const spotifyInput = root.querySelector("#spotify-search-input");
     const artist = r.artist || "";
@@ -813,9 +813,22 @@ class VinylCollectionCard extends HTMLElement {
 
   async _doSpotifySearch() {
     const root = this.shadowRoot;
-    const entityId = root.querySelector("#spotify-entity-select").value;
     const query = root.querySelector("#spotify-search-input").value.trim();
-    if (!entityId || !query) return;
+    if (!query) return;
+
+    let entityId = (() => { try { return localStorage.getItem("vinyl_spotify_entity") || ""; } catch(_) { return ""; } })();
+    if (!entityId) {
+      const players = this._getMediaPlayers();
+      const spotify = players.find(p => p.entity_id.toLowerCase().includes("spotify"));
+      entityId = spotify ? spotify.entity_id : (players[0] ? players[0].entity_id : "");
+    }
+    if (!entityId) {
+      this._spotifyError = "No media player found. Play a record first to set your player.";
+      this._spotifyResults = [];
+      this._spotifySearching = false;
+      this._renderSpotifyResults();
+      return;
+    }
 
     this._spotifySearching = true;
     this._renderSpotifyResults();

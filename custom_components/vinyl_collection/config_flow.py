@@ -9,7 +9,7 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.selector import BooleanSelector
 
-from .const import CONF_DISCOGS_ENABLED, CONF_DISCOGS_TOKEN, CONF_NAME, DEFAULT_NAME, DOMAIN
+from .const import CONF_DISCOGS_ENABLED, CONF_DISCOGS_TOKEN, CONF_NAME, CONF_SPOTIFY_ENABLED, DEFAULT_NAME, DOMAIN
 
 
 class VinylCollectionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -34,6 +34,7 @@ class VinylCollectionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
                 vol.Optional(CONF_DISCOGS_TOKEN, default=""): str,
                 vol.Optional(CONF_DISCOGS_ENABLED, default=True): BooleanSelector(),
+                vol.Optional(CONF_SPOTIFY_ENABLED, default=False): BooleanSelector(),
             }
         )
         return self.async_show_form(
@@ -62,9 +63,13 @@ class VinylCollectionOptionsFlow(config_entries.OptionsFlow):
             self.config_entry.options.get(CONF_DISCOGS_TOKEN)
             or self.config_entry.data.get(CONF_DISCOGS_TOKEN, "")
         )
-        current_enabled = self.config_entry.options.get(
+        current_discogs_enabled = self.config_entry.options.get(
             CONF_DISCOGS_ENABLED,
             self.config_entry.data.get(CONF_DISCOGS_ENABLED, True),
+        )
+        current_spotify_enabled = self.config_entry.options.get(
+            CONF_SPOTIFY_ENABLED,
+            self.config_entry.data.get(CONF_SPOTIFY_ENABLED, False),
         )
 
         return self.async_show_form(
@@ -72,7 +77,8 @@ class VinylCollectionOptionsFlow(config_entries.OptionsFlow):
             data_schema=vol.Schema(
                 {
                     vol.Optional(CONF_DISCOGS_TOKEN, default=current_token): str,
-                    vol.Optional(CONF_DISCOGS_ENABLED, default=current_enabled): bool,
+                    vol.Optional(CONF_DISCOGS_ENABLED, default=current_discogs_enabled): BooleanSelector(),
+                    vol.Optional(CONF_SPOTIFY_ENABLED, default=current_spotify_enabled): BooleanSelector(),
                 }
             ),
         )

@@ -829,15 +829,14 @@ class VinylCollectionCard extends HTMLElement {
       });
 
       let items = result.children || [];
+      // If results are grouped into categories, flatten them
       if (items.length && items[0] && Array.isArray(items[0].children)) {
-        const albumCat = items.find(c => (c.title || "").toLowerCase().includes("album"));
-        items = albumCat ? albumCat.children : items.flatMap(c => c.children || []);
+        items = items.flatMap(c => c.children || []);
       }
-      const albumItems = items.filter(i =>
-        i.media_content_type === "album" || (i.media_content_id || "").startsWith("spotify:album:")
-      );
-      this._spotifyResults = (albumItems.length ? albumItems : items).slice(0, 8);
-      this._spotifyError = this._spotifyResults.length === 0 ? "No results found." : null;
+      this._spotifyResults = items.slice(0, 8);
+      this._spotifyError = items.length === 0
+        ? "No results. Check the media player selected is your Spotify player."
+        : null;
     } catch (err) {
       this._spotifyResults = [];
       this._spotifyError = err.message || "Search failed.";
@@ -859,7 +858,12 @@ class VinylCollectionCard extends HTMLElement {
       return;
     }
 
-    if (!this._spotifyResults.length) { container.style.display = "none"; return; }
+    if (!this._spotifyResults.length) {
+      container.innerHTML = "<div style=\"padding:12px;font-size:13px;color:var(--secondary-text-color);\">" +
+        this._esc(this._spotifyError || "No results.") + "</div>";
+      container.style.display = "block";
+      return;
+    }
 
     container.innerHTML = this._spotifyResults.map((r, i) =>
       "<div class=\"spotify-result\" data-index=\"" + i + "\">" +

@@ -449,6 +449,8 @@ class VinylCollectionCard extends HTMLElement {
       ".spotify-help { font-size: 12px; color: var(--secondary-text-color); line-height: 1.5; }" +
       ".spotify-saved { display: none; font-size: 13px; color: #1DB954; background: rgba(29,185,84,0.08); border-radius: 6px; padding: 8px 12px; display: none; align-items: center; gap: 6px; }" +
       ".play-btn { color: #1DB954; }" +
+      ".btn-spotify { background: #1DB954; color: #fff; }" +
+      ".btn-spotify:disabled { background: var(--disabled-color, #bdbdbd); cursor: not-allowed; opacity: 0.6; }" +
       ".play-picker-dialog { background: var(--card-background-color, #fff); color: var(--primary-text-color); border-radius: 12px; width: 90%; max-width: 360px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); max-height: 80vh; overflow-y: auto; }" +
       ".play-picker-dialog h3 { font-size: 16px; font-weight: 500; }" +
       ".entity-list { display: flex; flex-direction: column; gap: 2px; }" +
@@ -523,7 +525,7 @@ class VinylCollectionCard extends HTMLElement {
       "<div class=\"spotify-header\"><ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;\"></ha-icon><span>Spotify</span></div>" +
       "<p class=\"spotify-help\">You can link this record to Spotify. This will enable you to play the album on a media player of your choice.</p>" +
       "<div class=\"spotify-saved\" id=\"spotify-saved\"></div>" +
-      "<button class=\"btn btn-save\" id=\"spotify-search-btn\" style=\"align-self:flex-start;\">Search Spotify</button>" +
+      "<button class=\"btn btn-spotify\" id=\"spotify-search-btn\" style=\"align-self:flex-start;\" disabled>Search Spotify</button>" +
       "<div class=\"spotify-results\" id=\"spotify-results\"></div>" +
       "</div>" +
       "<div class=\"dialog-error\" id=\"dialog-error\"></div>" +
@@ -570,7 +572,10 @@ class VinylCollectionCard extends HTMLElement {
 
     root.querySelector("#f-artist").addEventListener("input", e => {
       this._updateArtistSuggestions(e.target.value);
+      this._updateSpotifyBtn();
     });
+
+    root.querySelector("#f-album").addEventListener("input", () => this._updateSpotifyBtn());
     root.querySelector("#f-artist").addEventListener("blur", () => {
       setTimeout(() => {
         const s = root.querySelector("#artist-suggestions");
@@ -695,6 +700,7 @@ class VinylCollectionCard extends HTMLElement {
       }
     }
 
+    this._updateSpotifyBtn();
     this._renderCoverPreview();
     this._setSaving(false);
     this._updateStars();
@@ -802,6 +808,15 @@ class VinylCollectionCard extends HTMLElement {
         }
       });
     });
+  }
+
+  _updateSpotifyBtn() {
+    const root = this.shadowRoot;
+    const btn = root.querySelector("#spotify-search-btn");
+    if (!btn) return;
+    const artist = root.querySelector("#f-artist").value.trim();
+    const album = root.querySelector("#f-album").value.trim();
+    btn.disabled = !(artist && album);
   }
 
   _getMediaPlayers() {

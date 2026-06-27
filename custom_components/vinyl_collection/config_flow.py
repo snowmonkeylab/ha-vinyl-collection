@@ -33,7 +33,7 @@ class VinylCollectionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
                 vol.Optional(CONF_DISCOGS_TOKEN, default=""): str,
-                vol.Optional(CONF_DISCOGS_ENABLED, default=True): BooleanSelector(),
+                vol.Optional(CONF_DISCOGS_ENABLED, default=False): BooleanSelector(),
                 vol.Optional(CONF_SPOTIFY_ENABLED, default=False): BooleanSelector(),
             }
         )
@@ -65,7 +65,7 @@ class VinylCollectionOptionsFlow(config_entries.OptionsFlow):
         )
         current_discogs_enabled = self.config_entry.options.get(
             CONF_DISCOGS_ENABLED,
-            self.config_entry.data.get(CONF_DISCOGS_ENABLED, True),
+            self.config_entry.data.get(CONF_DISCOGS_ENABLED, False),
         )
         current_spotify_enabled = self.config_entry.options.get(
             CONF_SPOTIFY_ENABLED,

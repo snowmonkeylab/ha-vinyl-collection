@@ -78,6 +78,8 @@ UPDATE_RECORD_SCHEMA = vol.Schema(
         vol.Optional(ATTR_GENRE): cv.string,
         vol.Optional(ATTR_LABEL): cv.string,
         vol.Optional(ATTR_CATALOG_NUMBER): cv.string,
+        vol.Optional(ATTR_DISCOGS_ID): cv.string,
+        vol.Optional(ATTR_COVER_URL): cv.string,
         vol.Optional(ATTR_SPOTIFY_URI): cv.string,
         vol.Optional(ATTR_RATING): vol.All(vol.Coerce(int), vol.Range(min=1, max=5)),
     }
@@ -179,7 +181,7 @@ def _get_discogs_token(entry: ConfigEntry) -> str | None:
 def _is_discogs_enabled(entry: ConfigEntry) -> bool:
     """Return True if Discogs integration is toggled on."""
     return bool(
-        entry.options.get(CONF_DISCOGS_ENABLED, entry.data.get(CONF_DISCOGS_ENABLED, True))
+        entry.options.get(CONF_DISCOGS_ENABLED, entry.data.get(CONF_DISCOGS_ENABLED, False))
     )
 
 

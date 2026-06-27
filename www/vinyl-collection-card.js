@@ -364,9 +364,15 @@ class VinylCollectionCard extends HTMLElement {
       ".tab { padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--secondary-text-color); border-bottom: 2px solid transparent; margin-bottom: -2px; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; }" +
       ".tab.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }" +
       ".tab:hover { color: var(--primary-text-color); }" +
-      ".wishlist-toggle { display: flex; align-items: center; gap: 10px; padding: 4px 0; }" +
-      ".wishlist-toggle label { font-size: 14px; color: var(--primary-text-color); cursor: pointer; margin: 0; }" +
-      ".wishlist-toggle input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary-color); }" +
+      ".wishlist-toggle { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }" +
+      ".wishlist-toggle-label { font-size: 14px; color: var(--primary-text-color); }" +
+      ".toggle-switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }" +
+      ".toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }" +
+      ".toggle-slider { position: absolute; cursor: pointer; inset: 0; background: var(--divider-color, #ccc); border-radius: 24px; transition: 0.25s; }" +
+      ".toggle-slider:before { content: ''; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.25s; }" +
+      ".toggle-switch input:checked + .toggle-slider { background: var(--primary-color); }" +
+      ".toggle-switch input:checked + .toggle-slider:before { transform: translateX(18px); }" +
+      ".section-divider { border: none; border-top: 1px solid var(--divider-color, #ccc); margin: 4px 0; }" +
       ".toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }" +
       ".search-input { flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--divider-color, #ccc); background: var(--input-fill-color, var(--secondary-background-color, #f5f5f5)); color: var(--primary-text-color); font-size: 14px; font-family: inherit; outline: none; }" +
       ".search-input:focus { border-color: var(--primary-color); }" +
@@ -524,6 +530,13 @@ class VinylCollectionCard extends HTMLElement {
       "<span class=\"star\" data-v=\"4\">&#9733;</span>" +
       "<span class=\"star\" data-v=\"5\">&#9733;</span>" +
       "</div></div>" +
+      "<div class=\"wishlist-toggle\">" +
+      "<span class=\"wishlist-toggle-label\">Add to Wish List</span>" +
+      "<label class=\"toggle-switch\">" +
+      "<input type=\"checkbox\" id=\"f-is-wishlist\"/>" +
+      "<span class=\"toggle-slider\"></span>" +
+      "</label>" +
+      "</div>" +
       "</div>" +
       "</div>" +
       "<input type=\"hidden\" id=\"f-label\"/>" +
@@ -531,6 +544,7 @@ class VinylCollectionCard extends HTMLElement {
       "<input type=\"hidden\" id=\"f-discogs-id\"/>" +
       "<input type=\"hidden\" id=\"f-cover-url\"/>" +
       "<input type=\"hidden\" id=\"f-spotify-uri\"/>" +
+      "<hr class=\"section-divider\"/>" +
       "<p class=\"spotify-not-installed\" id=\"spotify-not-installed\">Activating the Spotify integration will enable linking and playback.</p>" +
       "<div class=\"spotify-disabled-notice\" id=\"spotify-disabled-notice\">You can enable Spotify search and playback. To do this, navigate to Settings → Devices &amp; Services → Vinyl Collection → Configure.</div>" +
       "<div class=\"spotify-section\" id=\"spotify-section\">" +
@@ -539,10 +553,6 @@ class VinylCollectionCard extends HTMLElement {
       "<div class=\"spotify-saved\" id=\"spotify-saved\"></div>" +
       "<button class=\"btn btn-spotify\" id=\"spotify-search-btn\" style=\"align-self:flex-start;\">Search Spotify</button>" +
       "<div class=\"spotify-results\" id=\"spotify-results\"></div>" +
-      "</div>" +
-      "<div class=\"wishlist-toggle\">" +
-      "<input type=\"checkbox\" id=\"f-is-wishlist\"/>" +
-      "<label for=\"f-is-wishlist\">Add to Wish List</label>" +
       "</div>" +
       "<div class=\"dialog-error\" id=\"dialog-error\"></div>" +
       "<div class=\"dialog-actions\">" +

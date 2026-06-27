@@ -35,6 +35,7 @@ ATTR_COVER_URL = "cover_url"
 ATTR_SPOTIFY_URI = "spotify_uri"
 ATTR_DATE_ADDED = "date_added"
 ATTR_IS_WISHLIST = "is_wishlist"
+ATTR_OWNED_BY = "owned_by"
 ATTR_QUERY = "query"
 
 EVENT_RECORD_ADDED = f"{DOMAIN}_record_added"

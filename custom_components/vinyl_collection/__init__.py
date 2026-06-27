@@ -23,6 +23,7 @@ from .const import (
     ATTR_GENRE,
     ATTR_IS_WISHLIST,
     ATTR_LABEL,
+    ATTR_OWNED_BY,
     ATTR_QUERY,
     ATTR_RATING,
     ATTR_RECORD_ID,
@@ -66,6 +67,7 @@ ADD_RECORD_SCHEMA = vol.Schema(
         vol.Optional(ATTR_SPOTIFY_URI): cv.string,
         vol.Optional(ATTR_RATING): vol.All(vol.Coerce(int), vol.Range(min=1, max=5)),
         vol.Optional(ATTR_IS_WISHLIST, default=False): cv.boolean,
+        vol.Optional(ATTR_OWNED_BY, default=[]): [cv.string],
     }
 )
 
@@ -85,6 +87,7 @@ UPDATE_RECORD_SCHEMA = vol.Schema(
         vol.Optional(ATTR_SPOTIFY_URI): cv.string,
         vol.Optional(ATTR_RATING): vol.All(vol.Coerce(int), vol.Range(min=1, max=5)),
         vol.Optional(ATTR_IS_WISHLIST): cv.boolean,
+        vol.Optional(ATTR_OWNED_BY): [cv.string],
     }
 )
 

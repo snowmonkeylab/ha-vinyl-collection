@@ -276,7 +276,7 @@ def _register_services(
         if token:
             headers["Authorization"] = f"Discogs token={token}"
 
-        params = {"q": query, "type": "master", "per_page": 8, "page": 1}
+        params = {"q": query, "type": "master", "format": "Vinyl", "per_page": 10, "page": 1}
         session = async_get_clientsession(hass)
 
         try:

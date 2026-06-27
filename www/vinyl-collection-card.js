@@ -906,7 +906,12 @@ class VinylCollectionCard extends HTMLElement {
 
   _applySpotifyResult(result) {
     const root = this.shadowRoot;
-    const uri = result.media_content_id || "";
+    let uri = result.media_content_id || "";
+    // Convert HA internal library:// URIs to standard Spotify URIs for universal playback
+    const libraryMap = { "library://album/": "spotify:album:", "library://track/": "spotify:track:", "library://artist/": "spotify:artist:", "library://playlist/": "spotify:playlist:" };
+    for (const [prefix, replacement] of Object.entries(libraryMap)) {
+      if (uri.startsWith(prefix)) { uri = replacement + uri.slice(prefix.length); break; }
+    }
     root.querySelector("#f-spotify-uri").value = uri;
     this._spotifyResults = [];
     this._spotifyError = null;

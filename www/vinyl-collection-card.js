@@ -806,10 +806,6 @@ class VinylCollectionCard extends HTMLElement {
     });
   }
 
-  _hasSpotCast() {
-    return !!(this._hass && this._hass.services && this._hass.services.spotcast);
-  }
-
   _hasMusicAssistant() {
     return !!(this._hass && this._hass.config && (this._hass.config.components || []).includes("mass"));
   }
@@ -819,11 +815,8 @@ class VinylCollectionCard extends HTMLElement {
     return !!(state && (state.attributes.app_id === "music_assistant" || state.attributes.mass_player_type !== undefined));
   }
 
-  _isCastEntity(entityId) {
-    if (this._hass && this._hass.entities && this._hass.entities[entityId]) {
-      return this._hass.entities[entityId].platform === "cast";
-    }
-    return false;
+  _getMassPlayers() {
+    return this._getMediaPlayers().filter(p => this._isMassEntity(p.entity_id));
   }
 
   _getMediaPlayers() {
@@ -954,34 +947,19 @@ class VinylCollectionCard extends HTMLElement {
     const list = this.shadowRoot.querySelector("#entity-list");
     const lastUsed = (() => { try { return localStorage.getItem("vinyl_spotify_entity") || ""; } catch(_) { return ""; } })();
 
-    const hasSpotcast = this._hasSpotCast();
-
-    const allPlayers = this._getMediaPlayers();
-    const players = allPlayers.filter(p => {
-      if (this._isMassEntity(p.entity_id)) return true;
-      if (this._isCastEntity(p.entity_id)) return hasSpotcast;
-      return true;
-    });
-
-    const warning = !this._hasMusicAssistant() && !hasSpotcast
-      ? "<div style=\"font-size:12px;color:var(--secondary-text-color);padding:4px 0 8px;\">For speaker playback, install Music Assistant or SpotCast.</div>"
-      : "";
+    const players = this._getMassPlayers();
 
     if (!players.length) {
-      list.innerHTML = "<div style=\"padding:12px;color:var(--secondary-text-color);font-size:13px;\">No compatible media players found. Install Music Assistant or SpotCast.</div>";
+      list.innerHTML = "<div style=\"padding:12px;color:var(--secondary-text-color);font-size:13px;\">No Music Assistant players found. Install the Music Assistant integration to enable speaker playback.</div>";
     } else {
-      list.innerHTML = warning + players.map(p => {
-        const isMa = this._isMassEntity(p.entity_id);
-        const isCast = this._isCastEntity(p.entity_id);
-        const icon = isMa ? "mdi:music-note" : isCast ? "mdi:cast" : "mdi:speaker";
-        const badge = isMa ? "Music Assistant" : isCast ? "SpotCast" : "";
-        return "<div class=\"entity-item" + (p.entity_id === lastUsed ? " last-used" : "") + "\" data-entity=\"" + this._esc(p.entity_id) + "\">" +
-          "<ha-icon icon=\"" + icon + "\" style=\"width:20px;height:20px;flex-shrink:0;" + (isMa ? "color:#1DB954;" : isCast ? "color:var(--primary-color);" : "") + "\"></ha-icon>" +
-          "<div style=\"flex:1;min-width:0;\">" +
-          "<div>" + this._esc(p.name) + "</div>" +
-          (badge ? "<div style=\"font-size:11px;color:var(--secondary-text-color);\">" + badge + "</div>" : "") +
-          "</div></div>";
-      }).join("");
+      list.innerHTML = players.map(p =>
+        "<div class=\"entity-item" + (p.entity_id === lastUsed ? " last-used" : "") + "\" data-entity=\"" + this._esc(p.entity_id) + "\">" +
+        "<ha-icon icon=\"mdi:music-note\" style=\"width:20px;height:20px;flex-shrink:0;color:#1DB954;\"></ha-icon>" +
+        "<div style=\"flex:1;min-width:0;\">" +
+        "<div>" + this._esc(p.name) + "</div>" +
+        "<div style=\"font-size:11px;color:var(--secondary-text-color);\">Music Assistant</div>" +
+        "</div></div>"
+      ).join("");
       list.querySelectorAll(".entity-item").forEach(el => {
         el.addEventListener("click", () => {
           this._playRecord(el.dataset.entity, this._playPickerRecord);
@@ -1000,23 +978,15 @@ class VinylCollectionCard extends HTMLElement {
   _playRecord(entityId, record) {
     try { localStorage.setItem("vinyl_spotify_entity", entityId); } catch(_) {}
     const uri = record.spotify_uri || "";
-    if (this._isCastEntity(entityId) && this._hasSpotCast()) {
-      this._hass.callService("spotcast", "start", {
-        entity_id: entityId,
-        uri: uri,
-        force_playback: true,
-      });
-    } else {
-      const contentType = uri.startsWith("spotify:album:") ? "album"
-        : uri.startsWith("spotify:track:") ? "track"
-        : uri.startsWith("spotify:playlist:") ? "playlist"
-        : "music";
-      this._hass.callService("media_player", "play_media", {
-        entity_id: entityId,
-        media_content_id: uri,
-        media_content_type: contentType,
-      });
-    }
+    const contentType = uri.startsWith("spotify:album:") ? "album"
+      : uri.startsWith("spotify:track:") ? "track"
+      : uri.startsWith("spotify:playlist:") ? "playlist"
+      : "music";
+    this._hass.callService("media_player", "play_media", {
+      entity_id: entityId,
+      media_content_id: uri,
+      media_content_type: contentType,
+    });
   }
 
   _esc(str) {

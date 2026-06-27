@@ -276,7 +276,7 @@ def _register_services(
         if token:
             headers["Authorization"] = f"Discogs token={token}"
 
-        params = {"q": query, "type": "master", "format": "Vinyl", "per_page": 10, "page": 1}
+        params = {"q": query, "type": "master", "per_page": 10, "page": 1}
         session = async_get_clientsession(hass)
 
         try:
@@ -292,8 +292,13 @@ def _register_services(
         except aiohttp.ClientError as err:
             raise HomeAssistantError(f"Failed to reach Discogs API: {err}") from err
 
+        _NON_VINYL = {"CD", "CDr", "DVD", "Blu-ray", "Cassette", "File", "Digital Media", "SACD", "VHS"}
+
         results = []
         for item in data.get("results", []):
+            item_formats = set(item.get("format", []))
+            if item_formats and item_formats.issubset(_NON_VINYL):
+                continue
             year = None
             raw_year = item.get("year")
             if raw_year:

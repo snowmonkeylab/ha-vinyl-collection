@@ -21,6 +21,7 @@ from .const import (
     ATTR_COVER_URL,
     ATTR_DISCOGS_ID,
     ATTR_GENRE,
+    ATTR_IS_WISHLIST,
     ATTR_LABEL,
     ATTR_QUERY,
     ATTR_RATING,
@@ -64,6 +65,7 @@ ADD_RECORD_SCHEMA = vol.Schema(
         vol.Optional(ATTR_COVER_URL): cv.string,
         vol.Optional(ATTR_SPOTIFY_URI): cv.string,
         vol.Optional(ATTR_RATING): vol.All(vol.Coerce(int), vol.Range(min=1, max=5)),
+        vol.Optional(ATTR_IS_WISHLIST, default=False): cv.boolean,
     }
 )
 
@@ -82,6 +84,7 @@ UPDATE_RECORD_SCHEMA = vol.Schema(
         vol.Optional(ATTR_COVER_URL): cv.string,
         vol.Optional(ATTR_SPOTIFY_URI): cv.string,
         vol.Optional(ATTR_RATING): vol.All(vol.Coerce(int), vol.Range(min=1, max=5)),
+        vol.Optional(ATTR_IS_WISHLIST): cv.boolean,
     }
 )
 

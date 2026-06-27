@@ -13,7 +13,6 @@ from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, Supp
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.storage import Store
 
 from .const import (
     ATTR_ALBUM,
@@ -105,19 +104,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN]["_frontend_registered"] = True
 
     async def _async_register_lovelace_resource(_event=None) -> None:
-        """Add the card to Lovelace resources storage if not already present."""
+        """Add the card to Lovelace resources via the in-memory collection."""
         try:
-            import time
-            store = Store(hass, 1, "lovelace_resources")
-            data = await store.async_load() or {"items": []}
-            items = data.setdefault("items", [])
-            if any(item.get("url") == CARD_URL for item in items):
+            lovelace = hass.data.get("lovelace")
+            if not lovelace:
                 return
-            items.append({"id": str(int(time.time() * 1000)), "type": "module", "url": CARD_URL})
-            await store.async_save(data)
-            _LOGGER.info("Vinyl Collection: registered card as Lovelace resource — reload the browser to activate it")
+            resources = (
+                lovelace.get("resources")
+                if isinstance(lovelace, dict)
+                else getattr(lovelace, "resources", None)
+            )
+            if resources is None:
+                return
+            if hasattr(resources, "async_load"):
+                await resources.async_load()
+            existing = resources.async_items() if hasattr(resources, "async_items") else []
+            if any(r.get("url") == CARD_URL for r in existing):
+                return
+            await resources.async_create_item({"res_type": "module", "url": CARD_URL})
+            _LOGGER.info("Vinyl Collection: registered card as Lovelace resource")
         except Exception as err:
-            _LOGGER.warning("Vinyl Collection: could not register card resource (%s) — add %s manually as a module resource", err, CARD_URL)
+            _LOGGER.warning(
+                "Vinyl Collection: could not auto-register card — add %s manually as a module resource (%s)",
+                CARD_URL, err,
+            )
 
     if hass.is_running:
         await _async_register_lovelace_resource()

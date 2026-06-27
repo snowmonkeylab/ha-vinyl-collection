@@ -826,40 +826,34 @@ class VinylCollectionCard extends HTMLElement {
       return;
     }
 
-    // Use a separate key for search entity so playback entity selection doesn't interfere
-    let entityId = (() => { try { return localStorage.getItem("vinyl_spotify_search_entity") || ""; } catch(_) { return ""; } })();
-    if (!entityId) {
-      const spotifyPlayers = this._getSpotifyPlayers();
-      entityId = spotifyPlayers.length ? spotifyPlayers[0].entity_id : "";
-    }
-    if (!entityId) {
-      this._spotifyError = "No Spotify media player found.";
-      this._spotifyResults = [];
-      this._spotifySearching = false;
-      this._renderSpotifyResults();
-      return;
-    }
-
     this._spotifySearching = true;
     this._renderSpotifyResults();
 
     try {
-      const result = await this._hass.callWS({
-        type: "media_player/search_media",
-        entity_id: entityId,
-        search_query: query,
-      });
+      // Try the previously working entity first, then fall through all players
+      const savedEntity = (() => { try { return localStorage.getItem("vinyl_spotify_search_entity") || ""; } catch(_) { return ""; } })();
+      const allPlayers = this._getMediaPlayers().map(p => p.entity_id);
+      const ordered = savedEntity
+        ? [savedEntity, ...allPlayers.filter(id => id !== savedEntity)]
+        : allPlayers;
+
+      let result = null;
+      let usedEntity = null;
+      for (const id of ordered) {
+        try {
+          result = await this._hass.callWS({ type: "media_player/search_media", entity_id: id, search_query: query });
+          usedEntity = id;
+          break;
+        } catch (_) { /* try next */ }
+      }
+
+      if (!result) throw new Error("No media player found that supports Spotify search.");
 
       const items = result.result || result.children || [];
       const albums = items.filter(i => i.media_class === "album");
       this._spotifyResults = (albums.length ? albums : items).slice(0, 8);
-      this._spotifyError = items.length === 0
-        ? "No results. Check the media player selected is your Spotify player."
-        : null;
-      // Remember the entity that worked for future searches
-      if (this._spotifyResults.length) {
-        try { localStorage.setItem("vinyl_spotify_search_entity", entityId); } catch(_) {}
-      }
+      this._spotifyError = this._spotifyResults.length === 0 ? "No results found." : null;
+      if (usedEntity) try { localStorage.setItem("vinyl_spotify_search_entity", usedEntity); } catch(_) {}
     } catch (err) {
       this._spotifyResults = [];
       this._spotifyError = err.message || "Search failed.";

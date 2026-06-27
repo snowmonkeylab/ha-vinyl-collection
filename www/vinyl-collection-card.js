@@ -364,8 +364,7 @@ class VinylCollectionCard extends HTMLElement {
       ".tab { padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--secondary-text-color); border-bottom: 2px solid transparent; margin-bottom: -2px; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; }" +
       ".tab.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }" +
       ".tab:hover { color: var(--primary-text-color); }" +
-      ".wishlist-toggle { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }" +
-      ".wishlist-toggle-label { font-size: 14px; color: var(--primary-text-color); }" +
+      ".wishlist-toggle { display: flex; align-items: center; gap: 10px; padding: 2px 0; }" +
       ".toggle-switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }" +
       ".toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }" +
       ".toggle-slider { position: absolute; cursor: pointer; inset: 0; background: var(--divider-color, #ccc); border-radius: 24px; transition: 0.25s; }" +
@@ -530,13 +529,13 @@ class VinylCollectionCard extends HTMLElement {
       "<span class=\"star\" data-v=\"4\">&#9733;</span>" +
       "<span class=\"star\" data-v=\"5\">&#9733;</span>" +
       "</div></div>" +
+      "<div><label>Wish List</label>" +
       "<div class=\"wishlist-toggle\">" +
-      "<span class=\"wishlist-toggle-label\">Add to Wish List</span>" +
       "<label class=\"toggle-switch\">" +
       "<input type=\"checkbox\" id=\"f-is-wishlist\"/>" +
       "<span class=\"toggle-slider\"></span>" +
       "</label>" +
-      "</div>" +
+      "</div></div>" +
       "</div>" +
       "</div>" +
       "<input type=\"hidden\" id=\"f-label\"/>" +

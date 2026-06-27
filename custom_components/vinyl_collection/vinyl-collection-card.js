@@ -969,10 +969,9 @@ class VinylCollectionCard extends HTMLElement {
   _playRecord(entityId, record) {
     try { localStorage.setItem("vinyl_spotify_entity", entityId); } catch(_) {}
     const uri = record.spotify_uri || "";
-    const contentType = uri.startsWith("spotify:album:") || uri.startsWith("library://album/") ? "album"
-      : uri.startsWith("spotify:track:") || uri.startsWith("library://track/") ? "track"
-      : uri.startsWith("spotify:playlist:") || uri.startsWith("library://playlist/") ? "playlist"
-      : uri.startsWith("spotify:artist:") || uri.startsWith("library://artist/") ? "artist"
+    const contentType = uri.startsWith("spotify:album:") ? "album"
+      : uri.startsWith("spotify:track:") ? "track"
+      : uri.startsWith("spotify:playlist:") ? "playlist"
       : "music";
     this._hass.callService("media_player", "play_media", {
       entity_id: entityId,

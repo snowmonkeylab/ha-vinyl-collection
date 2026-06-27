@@ -10,7 +10,7 @@ Spotify from your dashboard.
 - **Local-only storage** — uses Home Assistant's built-in `Store`, no external database
 - **Instant search** across artist, album, label, genre, and catalog number
 - **Discogs integration** — search Discogs to auto-fill artist, album, year, label, catalog number, and cover art when adding a record
-- **Spotify integration** — link records to Spotify and play them on any HA media player with a single tap
+- **Spotify integration** — link records to Spotify and play them on any Music Assistant speaker with a single tap
 - **Custom Lovelace card** — automatically registered on install, no manual resource setup needed
 - **Sensor** showing total record count
 - **Services** for use in automations and scripts: `add_record`, `remove_record`, `update_record`, `search`
@@ -44,7 +44,7 @@ During setup and via **Settings → Devices & Services → Vinyl Collection → 
 | --- | --- |
 | **Discogs API Token** | Optional. Generate a free personal token at [discogs.com/settings/developers](https://www.discogs.com/settings/developers). Required when Discogs is enabled. |
 | **Enable Discogs integration** | Allow the card to search Discogs for records and fetch cover art. |
-| **Enable Spotify integration** | Allow the card to search Spotify and play records. Requires the [Home Assistant Spotify integration](https://www.home-assistant.io/integrations/spotify/) to be set up. |
+| **Enable Spotify integration** | Allow the card to search Spotify and link records. Requires the [Home Assistant Spotify integration](https://www.home-assistant.io/integrations/spotify/). For speaker playback, [Music Assistant](https://music-assistant.io) must also be installed. |
 
 ## Using the Card
 
@@ -58,7 +58,7 @@ During setup and via **Settings → Devices & Services → Vinyl Collection → 
 
 ### Playing a record
 
-Records linked to Spotify show a green Spotify icon in the table. Tap it to choose which media player to play on.
+Records linked to Spotify show a green Spotify icon in the table. Tap it to choose which Music Assistant speaker to play on. [Music Assistant](https://music-assistant.io) must be installed for speaker playback.
 
 ### Searching your collection
 

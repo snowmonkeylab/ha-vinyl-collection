@@ -525,7 +525,7 @@ class VinylCollectionCard extends HTMLElement {
       "<div class=\"spotify-header\"><ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;\"></ha-icon><span>Spotify</span></div>" +
       "<p class=\"spotify-help\">You can link this record to Spotify. This will enable you to play the album on a media player of your choice.</p>" +
       "<div class=\"spotify-saved\" id=\"spotify-saved\"></div>" +
-      "<button class=\"btn btn-spotify\" id=\"spotify-search-btn\" style=\"align-self:flex-start;\" disabled>Search Spotify</button>" +
+      "<button class=\"btn btn-spotify\" id=\"spotify-search-btn\" style=\"align-self:flex-start;\">Search Spotify</button>" +
       "<div class=\"spotify-results\" id=\"spotify-results\"></div>" +
       "</div>" +
       "<div class=\"dialog-error\" id=\"dialog-error\"></div>" +
@@ -572,10 +572,7 @@ class VinylCollectionCard extends HTMLElement {
 
     root.querySelector("#f-artist").addEventListener("input", e => {
       this._updateArtistSuggestions(e.target.value);
-      this._updateSpotifyBtn();
     });
-
-    root.querySelector("#f-album").addEventListener("input", () => this._updateSpotifyBtn());
     root.querySelector("#f-artist").addEventListener("blur", () => {
       setTimeout(() => {
         const s = root.querySelector("#artist-suggestions");
@@ -700,7 +697,6 @@ class VinylCollectionCard extends HTMLElement {
       }
     }
 
-    this._updateSpotifyBtn();
     this._renderCoverPreview();
     this._setSaving(false);
     this._updateStars();
@@ -810,15 +806,6 @@ class VinylCollectionCard extends HTMLElement {
     });
   }
 
-  _updateSpotifyBtn() {
-    const root = this.shadowRoot;
-    const btn = root.querySelector("#spotify-search-btn");
-    if (!btn) return;
-    const artist = root.querySelector("#f-artist").value.trim();
-    const album = root.querySelector("#f-album").value.trim();
-    btn.disabled = !(artist && album);
-  }
-
   _getMediaPlayers() {
     if (!this._hass) return [];
     return Object.entries(this._hass.states)
@@ -832,17 +819,18 @@ class VinylCollectionCard extends HTMLElement {
     const artist = root.querySelector("#f-artist").value.trim();
     const album = root.querySelector("#f-album").value.trim();
     const query = [artist, album].filter(Boolean).join(" ");
-    if (!query) {
-      this._spotifyError = "Enter an artist and album first.";
+    if (!artist || !album) {
+      this._spotifyError = "Add an artist and album before searching Spotify.";
       this._spotifyResults = [];
       this._renderSpotifyResults();
       return;
     }
 
-    let entityId = (() => { try { return localStorage.getItem("vinyl_spotify_entity") || ""; } catch(_) { return ""; } })();
+    // Always use a Spotify entity for search, not a Cast/other entity from localStorage
+    const spotifyPlayers = this._getSpotifyPlayers();
+    let entityId = spotifyPlayers.length ? spotifyPlayers[0].entity_id : "";
     if (!entityId) {
-      const spotifyPlayers = this._getSpotifyPlayers();
-      entityId = spotifyPlayers.length ? spotifyPlayers[0].entity_id : "";
+      entityId = (() => { try { return localStorage.getItem("vinyl_spotify_entity") || ""; } catch(_) { return ""; } })();
     }
     if (!entityId) {
       this._spotifyError = "No Spotify media player found.";
@@ -924,7 +912,6 @@ class VinylCollectionCard extends HTMLElement {
     this._spotifyError = null;
     this._renderSpotifyResults();
     this._showSpotifyLinked(root);
-    this._updateSpotifyBtn();
   }
 
   _showSpotifyLinked(root) {

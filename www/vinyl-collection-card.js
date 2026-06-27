@@ -806,6 +806,26 @@ class VinylCollectionCard extends HTMLElement {
     });
   }
 
+  _hasSpotCast() {
+    return !!(this._hass && this._hass.services && this._hass.services.spotcast);
+  }
+
+  _hasMusicAssistant() {
+    return !!(this._hass && this._hass.config && (this._hass.config.components || []).includes("mass"));
+  }
+
+  _isMassEntity(entityId) {
+    const state = this._hass && this._hass.states[entityId];
+    return !!(state && (state.attributes.app_id === "music_assistant" || state.attributes.mass_player_type !== undefined));
+  }
+
+  _isCastEntity(entityId) {
+    if (this._hass && this._hass.entities && this._hass.entities[entityId]) {
+      return this._hass.entities[entityId].platform === "cast";
+    }
+    return false;
+  }
+
   _getMediaPlayers() {
     if (!this._hass) return [];
     return Object.entries(this._hass.states)
@@ -906,7 +926,12 @@ class VinylCollectionCard extends HTMLElement {
 
   _applySpotifyResult(result) {
     const root = this.shadowRoot;
-    const uri = result.media_content_id || "";
+    let uri = result.media_content_id || "";
+    // Convert HA internal library:// URIs to standard Spotify URIs for universal playback
+    const libraryMap = { "library://album/": "spotify:album:", "library://track/": "spotify:track:", "library://artist/": "spotify:artist:", "library://playlist/": "spotify:playlist:" };
+    for (const [prefix, replacement] of Object.entries(libraryMap)) {
+      if (uri.startsWith(prefix)) { uri = replacement + uri.slice(prefix.length); break; }
+    }
     root.querySelector("#f-spotify-uri").value = uri;
     this._spotifyResults = [];
     this._spotifyError = null;
@@ -927,19 +952,36 @@ class VinylCollectionCard extends HTMLElement {
   _openPlayPicker(record) {
     this._playPickerRecord = record;
     const list = this.shadowRoot.querySelector("#entity-list");
-    const players = this._getMediaPlayers();
     const lastUsed = (() => { try { return localStorage.getItem("vinyl_spotify_entity") || ""; } catch(_) { return ""; } })();
 
+    const hasSpotcast = this._hasSpotCast();
+
+    const allPlayers = this._getMediaPlayers();
+    const players = allPlayers.filter(p => {
+      if (this._isMassEntity(p.entity_id)) return true;
+      if (this._isCastEntity(p.entity_id)) return hasSpotcast;
+      return true;
+    });
+
+    const warning = !this._hasMusicAssistant() && !hasSpotcast
+      ? "<div style=\"font-size:12px;color:var(--secondary-text-color);padding:4px 0 8px;\">For speaker playback, install Music Assistant or SpotCast.</div>"
+      : "";
+
     if (!players.length) {
-      list.innerHTML = "<div style=\"padding:12px;color:var(--secondary-text-color);font-size:13px;\">No media player entities found.</div>";
+      list.innerHTML = "<div style=\"padding:12px;color:var(--secondary-text-color);font-size:13px;\">No compatible media players found. Install Music Assistant or SpotCast.</div>";
     } else {
-      list.innerHTML = players.map(p =>
-        "<div class=\"entity-item" + (p.entity_id === lastUsed ? " last-used" : "") + "\" data-entity=\"" + this._esc(p.entity_id) + "\">" +
-        "<ha-icon icon=\"mdi:speaker\" style=\"width:20px;height:20px;flex-shrink:0;\"></ha-icon>" +
-        "<div><div>" + this._esc(p.name) + "</div>" +
-        "<div style=\"font-size:11px;color:var(--secondary-text-color);\">" + this._esc(p.entity_id) + "</div></div>" +
-        "</div>"
-      ).join("");
+      list.innerHTML = warning + players.map(p => {
+        const isMa = this._isMassEntity(p.entity_id);
+        const isCast = this._isCastEntity(p.entity_id);
+        const icon = isMa ? "mdi:music-note" : isCast ? "mdi:cast" : "mdi:speaker";
+        const badge = isMa ? "Music Assistant" : isCast ? "SpotCast" : "";
+        return "<div class=\"entity-item" + (p.entity_id === lastUsed ? " last-used" : "") + "\" data-entity=\"" + this._esc(p.entity_id) + "\">" +
+          "<ha-icon icon=\"" + icon + "\" style=\"width:20px;height:20px;flex-shrink:0;" + (isMa ? "color:#1DB954;" : isCast ? "color:var(--primary-color);" : "") + "\"></ha-icon>" +
+          "<div style=\"flex:1;min-width:0;\">" +
+          "<div>" + this._esc(p.name) + "</div>" +
+          (badge ? "<div style=\"font-size:11px;color:var(--secondary-text-color);\">" + badge + "</div>" : "") +
+          "</div></div>";
+      }).join("");
       list.querySelectorAll(".entity-item").forEach(el => {
         el.addEventListener("click", () => {
           this._playRecord(el.dataset.entity, this._playPickerRecord);
@@ -958,15 +1000,23 @@ class VinylCollectionCard extends HTMLElement {
   _playRecord(entityId, record) {
     try { localStorage.setItem("vinyl_spotify_entity", entityId); } catch(_) {}
     const uri = record.spotify_uri || "";
-    const contentType = uri.startsWith("spotify:album:") ? "album"
-      : uri.startsWith("spotify:track:") ? "track"
-      : uri.startsWith("spotify:playlist:") ? "playlist"
-      : "music";
-    this._hass.callService("media_player", "play_media", {
-      entity_id: entityId,
-      media_content_id: uri,
-      media_content_type: contentType,
-    });
+    if (this._isCastEntity(entityId) && this._hasSpotCast()) {
+      this._hass.callService("spotcast", "start", {
+        entity_id: entityId,
+        uri: uri,
+        force_playback: true,
+      });
+    } else {
+      const contentType = uri.startsWith("spotify:album:") ? "album"
+        : uri.startsWith("spotify:track:") ? "track"
+        : uri.startsWith("spotify:playlist:") ? "playlist"
+        : "music";
+      this._hass.callService("media_player", "play_media", {
+        entity_id: entityId,
+        media_content_id: uri,
+        media_content_type: contentType,
+      });
+    }
   }
 
   _esc(str) {

@@ -832,7 +832,9 @@ class VinylCollectionCard extends HTMLElement {
     try {
       // Try the previously working entity first, then fall through all players
       const savedEntity = (() => { try { return localStorage.getItem("vinyl_spotify_search_entity") || ""; } catch(_) { return ""; } })();
-      const allPlayers = this._getMediaPlayers().map(p => p.entity_id);
+      const allPlayers = this._getMediaPlayers()
+        .map(p => p.entity_id)
+        .filter(id => !id.toLowerCase().includes("cast") && !id.toLowerCase().includes("chromecast"));
       const ordered = savedEntity
         ? [savedEntity, ...allPlayers.filter(id => id !== savedEntity)]
         : allPlayers;
@@ -934,7 +936,9 @@ class VinylCollectionCard extends HTMLElement {
       list.innerHTML = players.map(p =>
         "<div class=\"entity-item" + (p.entity_id === lastUsed ? " last-used" : "") + "\" data-entity=\"" + this._esc(p.entity_id) + "\">" +
         "<ha-icon icon=\"mdi:speaker\" style=\"width:20px;height:20px;flex-shrink:0;\"></ha-icon>" +
-        this._esc(p.name) + "</div>"
+        "<div><div>" + this._esc(p.name) + "</div>" +
+        "<div style=\"font-size:11px;color:var(--secondary-text-color);\">" + this._esc(p.entity_id) + "</div></div>" +
+        "</div>"
       ).join("");
       list.querySelectorAll(".entity-item").forEach(el => {
         el.addEventListener("click", () => {

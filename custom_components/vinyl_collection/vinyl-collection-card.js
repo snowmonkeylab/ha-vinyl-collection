@@ -826,11 +826,11 @@ class VinylCollectionCard extends HTMLElement {
       return;
     }
 
-    // Always use a Spotify entity for search, not a Cast/other entity from localStorage
-    const spotifyPlayers = this._getSpotifyPlayers();
-    let entityId = spotifyPlayers.length ? spotifyPlayers[0].entity_id : "";
+    // Use a separate key for search entity so playback entity selection doesn't interfere
+    let entityId = (() => { try { return localStorage.getItem("vinyl_spotify_search_entity") || ""; } catch(_) { return ""; } })();
     if (!entityId) {
-      entityId = (() => { try { return localStorage.getItem("vinyl_spotify_entity") || ""; } catch(_) { return ""; } })();
+      const spotifyPlayers = this._getSpotifyPlayers();
+      entityId = spotifyPlayers.length ? spotifyPlayers[0].entity_id : "";
     }
     if (!entityId) {
       this._spotifyError = "No Spotify media player found.";
@@ -856,6 +856,10 @@ class VinylCollectionCard extends HTMLElement {
       this._spotifyError = items.length === 0
         ? "No results. Check the media player selected is your Spotify player."
         : null;
+      // Remember the entity that worked for future searches
+      if (this._spotifyResults.length) {
+        try { localStorage.setItem("vinyl_spotify_search_entity", entityId); } catch(_) {}
+      }
     } catch (err) {
       this._spotifyResults = [];
       this._spotifyError = err.message || "Search failed.";

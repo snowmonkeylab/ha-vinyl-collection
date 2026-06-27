@@ -293,6 +293,7 @@ def _register_services(
             raise HomeAssistantError(f"Failed to reach Discogs API: {err}") from err
 
         _NON_VINYL = {"CD", "CDr", "DVD", "Blu-ray", "Cassette", "File", "Digital Media", "SACD", "VHS"}
+        _VINYL = {"LP", "12\"", "10\"", "7\"", "EP", "Vinyl", "Flexi-disc", "Shellac", "Picture Disc", "Acetate"}
         _VALID_TYPES = {"master", "release"}
 
         results = []
@@ -300,7 +301,9 @@ def _register_services(
             if item.get("type") not in _VALID_TYPES:
                 continue
             item_formats = set(item.get("format", []))
-            if item_formats and item_formats.issubset(_NON_VINYL):
+            has_non_vinyl = bool(item_formats & _NON_VINYL)
+            has_vinyl = bool(item_formats & _VINYL)
+            if has_non_vinyl and not has_vinyl:
                 continue
             year = None
             raw_year = item.get("year")

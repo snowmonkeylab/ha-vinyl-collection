@@ -51,6 +51,11 @@ add_record:
       required: false
       selector:
         text:
+    is_wishlist:
+      name: Wish List
+      required: false
+      selector:
+        boolean:
 
 remove_record:
   name: Remove Record
@@ -107,6 +112,11 @@ update_record:
       required: false
       selector:
         text:
+    is_wishlist:
+      name: Wish List
+      required: false
+      selector:
+        boolean:
 
 search:
   name: Search Collection

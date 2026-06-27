@@ -22,6 +22,7 @@ class VinylCollectionCard extends HTMLElement {
     this._sortCol = "artist";
     this._sortDir = 1;
     this._deleteId = null;
+    this._activeTab = "collection";
     this._loading = false;
     this._saving = false;
     this._discogsResults = [];
@@ -359,6 +360,13 @@ class VinylCollectionCard extends HTMLElement {
       "* { box-sizing: border-box; margin: 0; padding: 0; }" +
       ":host { display: block; font-family: var(--paper-font-body1_-_font-family, sans-serif); }" +
       "ha-card { padding: 16px 20px; }" +
+      ".tab-bar { display: flex; gap: 0; margin-bottom: 12px; border-bottom: 2px solid var(--divider-color, #ccc); }" +
+      ".tab { padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--secondary-text-color); border-bottom: 2px solid transparent; margin-bottom: -2px; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; }" +
+      ".tab.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }" +
+      ".tab:hover { color: var(--primary-text-color); }" +
+      ".wishlist-toggle { display: flex; align-items: center; gap: 10px; padding: 4px 0; }" +
+      ".wishlist-toggle label { font-size: 14px; color: var(--primary-text-color); cursor: pointer; margin: 0; }" +
+      ".wishlist-toggle input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary-color); }" +
       ".toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }" +
       ".search-input { flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--divider-color, #ccc); background: var(--input-fill-color, var(--secondary-background-color, #f5f5f5)); color: var(--primary-text-color); font-size: 14px; font-family: inherit; outline: none; }" +
       ".search-input:focus { border-color: var(--primary-color); }" +
@@ -459,6 +467,10 @@ class VinylCollectionCard extends HTMLElement {
       ".entity-item.last-used { font-weight: 500; }" +
       "</style>" +
       "<ha-card>" +
+      "<div class=\"tab-bar\">" +
+      "<button class=\"tab active\" id=\"tab-collection\" data-tab=\"collection\">Collection</button>" +
+      "<button class=\"tab\" id=\"tab-wishlist\" data-tab=\"wishlist\">Wish List</button>" +
+      "</div>" +
       "<div class=\"toolbar\">" +
       "<input type=\"text\" class=\"search-input\" id=\"search-input\" placeholder=\"Search artist, album, genre...\" autocomplete=\"off\"/>" +
       "<button class=\"add-btn\" id=\"add-btn\">+ Add Record</button>" +
@@ -528,6 +540,10 @@ class VinylCollectionCard extends HTMLElement {
       "<button class=\"btn btn-spotify\" id=\"spotify-search-btn\" style=\"align-self:flex-start;\">Search Spotify</button>" +
       "<div class=\"spotify-results\" id=\"spotify-results\"></div>" +
       "</div>" +
+      "<div class=\"wishlist-toggle\">" +
+      "<input type=\"checkbox\" id=\"f-is-wishlist\"/>" +
+      "<label for=\"f-is-wishlist\">Add to Wish List</label>" +
+      "</div>" +
       "<div class=\"dialog-error\" id=\"dialog-error\"></div>" +
       "<div class=\"dialog-actions\">" +
       "<button class=\"btn btn-cancel\" id=\"dialog-cancel\">Cancel</button>" +
@@ -554,6 +570,14 @@ class VinylCollectionCard extends HTMLElement {
       "</div>" +
       "</div>" +
       "</div>";
+
+    root.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        this._activeTab = tab.dataset.tab;
+        root.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === this._activeTab));
+        this._renderTable();
+      });
+    });
 
     root.querySelector("#search-input").addEventListener("input", e => this._onSearchInput(e.target.value));
     root.querySelector("#add-btn").addEventListener("click", () => this._openDialog(null));
@@ -651,6 +675,7 @@ class VinylCollectionCard extends HTMLElement {
       root.querySelector("#discogs-results").style.display = "none";
     }
 
+    root.querySelector("#f-is-wishlist").checked = !!r.is_wishlist;
     root.querySelector("#f-artist").value = r.artist || "";
     root.querySelector("#f-album").value = r.album || "";
     root.querySelector("#f-year").value = r.year || "";
@@ -723,6 +748,7 @@ class VinylCollectionCard extends HTMLElement {
     const data = { artist, album };
     const r = this._modalRecord || {};
     if (r.record_id) data.record_id = r.record_id;
+    data.is_wishlist = !!root.querySelector("#f-is-wishlist").checked;
 
     const year = root.querySelector("#f-year").value;
     if (year) data.year = parseInt(year);
@@ -756,7 +782,18 @@ class VinylCollectionCard extends HTMLElement {
     const root = this.shadowRoot;
     const tbody = root.querySelector("#tbody");
     const count = root.querySelector("#count");
-    const records = this._sortedRecords();
+
+    // Update tab counts
+    const collectionCount = this._records.filter(r => !r.is_wishlist).length;
+    const wishlistCount = this._records.filter(r => r.is_wishlist).length;
+    const tabCollection = root.querySelector("#tab-collection");
+    const tabWishlist = root.querySelector("#tab-wishlist");
+    if (tabCollection) tabCollection.textContent = "Collection (" + collectionCount + ")";
+    if (tabWishlist) tabWishlist.textContent = "Wish List (" + wishlistCount + ")";
+
+    const records = this._sortedRecords().filter(r =>
+      this._activeTab === "wishlist" ? !!r.is_wishlist : !r.is_wishlist
+    );
 
     count.textContent = records.length + " record" + (records.length !== 1 ? "s" : "");
 

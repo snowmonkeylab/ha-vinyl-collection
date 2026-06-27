@@ -924,6 +924,7 @@ class VinylCollectionCard extends HTMLElement {
     this._spotifyError = null;
     this._renderSpotifyResults();
     this._showSpotifyLinked(root);
+    this._updateSpotifyBtn();
   }
 
   _showSpotifyLinked(root) {

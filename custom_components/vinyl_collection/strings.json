@@ -11,7 +11,7 @@
         },
         "data_description": {
           "name": "A name for your collection.",
-          "discogs_token": "Required when Discogs is enabled. Generate a free personal token at discogs.com/settings/developers. You can add or update this later via Configure.",
+          "discogs_token": "Generate a free personal token at discogs.com/settings/developers. Required when Discogs is enabled. You can add or update this later via Configure.",
           "discogs_enabled": "Allow the card to search Discogs for records and fetch cover art.",
           "spotify_enabled": "Allow the card to search Spotify and play records. Requires the Home Assistant Spotify integration to be set up."
         }

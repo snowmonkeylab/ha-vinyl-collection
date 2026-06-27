@@ -435,6 +435,7 @@ class VinylCollectionCard extends HTMLElement {
       ".spotify-section { display: flex; flex-direction: column; gap: 6px; }" +
       ".spotify-header { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--secondary-text-color); line-height: 1; }" +
       ".spotify-header ha-icon { display: flex; align-items: center; --mdc-icon-size: 16px; width: 16px; height: 16px; }" +
+      ".spotify-not-installed { font-size: 12px; color: var(--secondary-text-color); display: none; }" +
       ".spotify-disabled-notice { font-size: 13px; color: var(--secondary-text-color); background: var(--secondary-background-color, #f5f5f5); border-radius: 8px; padding: 10px 14px; line-height: 1.5; display: none; }" +
       ".spotify-search-row input { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--divider-color, #ccc); background: var(--input-fill-color, var(--secondary-background-color, #f5f5f5)); color: var(--primary-text-color); font-size: 14px; font-family: inherit; outline: none; }" +
       ".spotify-search-row input:focus { border-color: #1DB954; }" +
@@ -445,8 +446,8 @@ class VinylCollectionCard extends HTMLElement {
       ".spotify-info { flex: 1; min-width: 0; }" +
       ".spotify-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }" +
       ".spotify-meta { font-size: 11px; color: var(--secondary-text-color); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }" +
-      ".spotify-saved { font-size: 12px; color: #1DB954; display: none; }" +
-      ".spotify-divider { border: none; border-top: 1px solid var(--divider-color, #ccc); margin: 4px 0 0 0; }" +
+      ".spotify-help { font-size: 12px; color: var(--secondary-text-color); line-height: 1.5; }" +
+      ".spotify-saved { display: none; font-size: 13px; color: #1DB954; background: rgba(29,185,84,0.08); border-radius: 6px; padding: 8px 12px; display: none; align-items: center; gap: 6px; }" +
       ".play-btn { color: #1DB954; }" +
       ".play-picker-dialog { background: var(--card-background-color, #fff); color: var(--primary-text-color); border-radius: 12px; width: 90%; max-width: 360px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); max-height: 80vh; overflow-y: auto; }" +
       ".play-picker-dialog h3 { font-size: 16px; font-weight: 500; }" +
@@ -489,16 +490,6 @@ class VinylCollectionCard extends HTMLElement {
       "<div class=\"discogs-results\" id=\"discogs-results\"></div>" +
       "<hr class=\"discogs-divider\"/>" +
       "</div>" +
-      "<div class=\"spotify-disabled-notice\" id=\"spotify-disabled-notice\">You can enable Spotify search and playback. To do this, navigate to Settings → Devices &amp; Services → Vinyl Collection → Configure.</div>" +
-      "<div class=\"spotify-section\" id=\"spotify-section\">" +
-      "<div class=\"spotify-header\"><ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;\"></ha-icon><span>Spotify</span></div>" +
-      "<div class=\"spotify-search-row\">" +
-      "<input type=\"text\" id=\"spotify-search-input\" placeholder=\"Search Spotify for this album...\" autocomplete=\"off\"/>" +
-      "</div>" +
-      "<div class=\"spotify-results\" id=\"spotify-results\"></div>" +
-      "<div class=\"spotify-saved\" id=\"spotify-saved\"></div>" +
-      "<hr class=\"spotify-divider\"/>" +
-      "</div>" +
       "<div class=\"cover-and-fields\">" +
       "<div class=\"cover-preview\" id=\"cover-preview\"></div>" +
       "<div class=\"fields\">" +
@@ -526,6 +517,18 @@ class VinylCollectionCard extends HTMLElement {
       "<input type=\"hidden\" id=\"f-discogs-id\"/>" +
       "<input type=\"hidden\" id=\"f-cover-url\"/>" +
       "<input type=\"hidden\" id=\"f-spotify-uri\"/>" +
+      "<p class=\"spotify-not-installed\" id=\"spotify-not-installed\">Activating the Spotify integration will enable linking and playback.</p>" +
+      "<div class=\"spotify-disabled-notice\" id=\"spotify-disabled-notice\">You can enable Spotify search and playback. To do this, navigate to Settings → Devices &amp; Services → Vinyl Collection → Configure.</div>" +
+      "<div class=\"spotify-section\" id=\"spotify-section\">" +
+      "<div class=\"spotify-header\"><ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;\"></ha-icon><span>Spotify</span></div>" +
+      "<p class=\"spotify-help\">You can link this record to Spotify. This will enable you to play the album on a media player of your choice.</p>" +
+      "<div class=\"spotify-saved\" id=\"spotify-saved\"></div>" +
+      "<div class=\"spotify-search-row\" style=\"display:flex;gap:8px;\">" +
+      "<input type=\"text\" id=\"spotify-search-input\" placeholder=\"Search Spotify for this album...\" autocomplete=\"off\" style=\"flex:1;\"/>" +
+      "<button class=\"btn btn-save\" id=\"spotify-search-btn\" style=\"white-space:nowrap;height:36px;padding:0 12px;\">Search Spotify</button>" +
+      "</div>" +
+      "<div class=\"spotify-results\" id=\"spotify-results\"></div>" +
+      "</div>" +
       "<div class=\"dialog-error\" id=\"dialog-error\"></div>" +
       "<div class=\"dialog-actions\">" +
       "<button class=\"btn btn-cancel\" id=\"dialog-cancel\">Cancel</button>" +
@@ -612,17 +615,11 @@ class VinylCollectionCard extends HTMLElement {
       if (e.target === root.querySelector("#delete-overlay")) this._closeDeleteDialog();
     });
 
-    root.querySelector("#spotify-search-input").addEventListener("input", e => {
-      clearTimeout(this._spotifySearchTimeout);
-      const val = e.target.value.trim();
-      if (val.length < 2) {
-        this._spotifyResults = [];
-        this._spotifyError = null;
-        this._renderSpotifyResults();
-        return;
-      }
-      this._spotifySearchTimeout = setTimeout(() => this._doSpotifySearch(), 500);
+    root.querySelector("#spotify-search-input").addEventListener("keydown", e => {
+      if (e.key === "Enter") this._doSpotifySearch();
     });
+
+    root.querySelector("#spotify-search-btn").addEventListener("click", () => this._doSpotifySearch());
 
     root.querySelector("#play-picker-cancel").addEventListener("click", () => this._closePlayPicker());
     root.querySelector("#play-picker-overlay").addEventListener("click", e => {
@@ -685,9 +682,11 @@ class VinylCollectionCard extends HTMLElement {
     // Spotify section — only relevant if Spotify integration is installed
     const spotifySection = root.querySelector("#spotify-section");
     const spotifyDisabledNotice = root.querySelector("#spotify-disabled-notice");
+    const spotifyNotInstalled = root.querySelector("#spotify-not-installed");
     const spotifyInstalled = this._hasSpotifyIntegration();
-    if (spotifySection) spotifySection.style.display = (spotifyInstalled && this._spotifyEnabled) ? "flex" : "none";
+    if (spotifyNotInstalled) spotifyNotInstalled.style.display = !spotifyInstalled ? "block" : "none";
     if (spotifyDisabledNotice) spotifyDisabledNotice.style.display = (spotifyInstalled && !this._spotifyEnabled) ? "block" : "none";
+    if (spotifySection) spotifySection.style.display = (spotifyInstalled && this._spotifyEnabled) ? "flex" : "none";
 
     const spotifyInput = root.querySelector("#spotify-search-input");
     const artist = r.artist || "";
@@ -695,13 +694,17 @@ class VinylCollectionCard extends HTMLElement {
     spotifyInput.value = [artist, album].filter(Boolean).join(" ");
 
     this._spotifyResults = [];
+    this._spotifyError = null;
     this._renderSpotifyResults();
 
     const spotifySaved = root.querySelector("#spotify-saved");
-    const existingUri = r.spotify_uri || "";
     if (spotifySaved) {
-      spotifySaved.textContent = existingUri ? "Linked: " + existingUri : "";
-      spotifySaved.style.display = existingUri ? "block" : "none";
+      if (r.spotify_uri) {
+        this._showSpotifyLinked(root);
+      } else {
+        spotifySaved.innerHTML = "";
+        spotifySaved.style.display = "none";
+      }
     }
 
     this._renderCoverPreview();
@@ -877,9 +880,12 @@ class VinylCollectionCard extends HTMLElement {
     }
 
     if (!this._spotifyResults.length) {
-      container.innerHTML = "<div style=\"padding:12px;font-size:13px;color:var(--secondary-text-color);\">" +
-        this._esc(this._spotifyError || "No results.") + "</div>";
-      container.style.display = "block";
+      if (this._spotifyError) {
+        container.innerHTML = "<div style=\"padding:12px;font-size:13px;color:var(--secondary-text-color);\">" + this._esc(this._spotifyError) + "</div>";
+        container.style.display = "block";
+      } else {
+        container.style.display = "none";
+      }
       return;
     }
 
@@ -905,9 +911,19 @@ class VinylCollectionCard extends HTMLElement {
     const uri = result.media_content_id || "";
     root.querySelector("#f-spotify-uri").value = uri;
     this._spotifyResults = [];
+    this._spotifyError = null;
     this._renderSpotifyResults();
-    const saved = root.querySelector("#spotify-saved");
-    if (saved) { saved.textContent = "Linked: " + uri; saved.style.display = "block"; }
+    this._showSpotifyLinked(root);
+  }
+
+  _showSpotifyLinked(root) {
+    const saved = root || this.shadowRoot;
+    const el = saved.querySelector("#spotify-saved");
+    if (el) {
+      el.innerHTML = "<ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;flex-shrink:0;\"></ha-icon>" +
+        "<span>This record has been linked to Spotify. Playback enabled.</span>";
+      el.style.display = "flex";
+    }
   }
 
   _openPlayPicker(record) {

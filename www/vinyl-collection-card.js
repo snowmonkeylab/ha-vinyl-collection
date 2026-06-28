@@ -396,8 +396,8 @@ class VinylCollectionCard extends HTMLElement {
       ".toggle-switch input:checked + .toggle-slider:before { transform: translateX(18px); }" +
       ".section-divider { border: none; border-top: 1px solid var(--divider-color, #ccc); margin: 4px 0; }" +
       ".user-filter { display: none; gap: 6px; align-items: center; flex-shrink: 0; }" +
-      ".person-chip { border-radius: 50%; border: 2px solid transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: var(--secondary-background-color); color: var(--secondary-text-color); user-select: none; overflow: hidden; flex-shrink: 0; transition: border-color 0.15s; }" +
-      ".person-chip.selected { border-color: var(--primary-color); }" +
+      ".person-chip { border-radius: 50%; border: 2px solid transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: var(--secondary-background-color); color: var(--secondary-text-color); user-select: none; overflow: hidden; flex-shrink: 0; transition: opacity 0.15s, border-color 0.15s; opacity: 0.35; }" +
+      ".person-chip.selected { border-color: var(--primary-color); opacity: 1; }" +
       ".owner-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0; }" +
       ".toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }" +
       ".search-input { flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--divider-color, #ccc); background: var(--input-fill-color, var(--secondary-background-color, #f5f5f5)); color: var(--primary-text-color); font-size: 14px; font-family: inherit; outline: none; }" +

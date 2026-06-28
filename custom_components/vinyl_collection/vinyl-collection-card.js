@@ -61,8 +61,8 @@ class VinylCollectionCard extends HTMLElement {
 
   async _loadHaUsers() {
     try {
-      const result = await this._hass.callWS({ type: "auth/list_users" });
-      this._haUsers = (result || []).filter(u => u.is_active !== false);
+      const result = await this._hass.callWS({ type: "config/auth/list" });
+      this._haUsers = (result || []).filter(u => u.is_active !== false && !u.system_generated);
     } catch (_) {
       this._haUsers = [];
     }

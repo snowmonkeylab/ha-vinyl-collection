@@ -11,8 +11,10 @@ Spotify from your dashboard.
 - **Instant search** across artist, album, label, genre, and catalog number
 - **Discogs integration** — search Discogs to auto-fill artist, album, year, label, catalog number, and cover art when adding a record
 - **Spotify integration** — link records to Spotify and play them on any Music Assistant speaker with a single tap
+- **Wish List** — tag records as wanted, with a dedicated tab separate from your collection
+- **Multi-user support** — attribute records to household members (HA People), filter the view by person
+- **Two sensors** — total collection count and wish list count, usable in automations and dashboards
 - **Custom Lovelace card** — automatically registered on install, no manual resource setup needed
-- **Sensor** showing total record count
 - **Services** for use in automations and scripts: `add_record`, `remove_record`, `update_record`, `search`
 
 ## Installation
@@ -44,7 +46,7 @@ During setup and via **Settings → Devices & Services → Vinyl Collection → 
 | --- | --- |
 | **Discogs API Token** | Optional. Generate a free personal token at [discogs.com/settings/developers](https://www.discogs.com/settings/developers). Required when Discogs is enabled. |
 | **Enable Discogs integration** | Allow the card to search Discogs for records and fetch cover art. |
-| **Enable Spotify integration** | Allow the card to search Spotify and link records. Requires the [Home Assistant Spotify integration](https://www.home-assistant.io/integrations/spotify/). For speaker playback, [Music Assistant](https://music-assistant.io) must also be installed. |
+| **Enable Spotify integration** | Allow the card to search Spotify and link records for playback. Requires the [Home Assistant Spotify integration](https://www.home-assistant.io/integrations/spotify/). For speaker playback, [Music Assistant](https://music-assistant.io) must also be installed. |
 
 ## Using the Card
 
@@ -53,16 +55,33 @@ During setup and via **Settings → Devices & Services → Vinyl Collection → 
 1. Click **+ Add Record**
 2. Optionally search Discogs to auto-fill fields — select a result to populate artist, album, year, label, catalog number, and cover art
 3. Fill in or adjust artist, album, year, genre, and rating
-4. If Spotify is enabled, click **Search Spotify** to link the record — this enables the play button in the table
-5. Click **Add to Collection**
+4. Toggle **Wish List** if this is a record you want but don't yet own
+5. If multiple HA People are configured, tap profile pictures under **Owner** to attribute the record
+6. If Spotify is enabled, click **Search Spotify** to link the record — this enables the play button in the table
+7. Click **Add to Collection**
+
+### Wish List
+
+The card has two tabs — **Collection** and **Wish List**. Records marked as wish list items appear only in the Wish List tab, keeping your owned records separate from ones you're looking for.
 
 ### Playing a record
 
 Records linked to Spotify show a green Spotify icon in the table. Tap it to choose which Music Assistant speaker to play on. [Music Assistant](https://music-assistant.io) must be installed for speaker playback.
 
+### Multi-user / family collections
+
+If you have multiple [People](https://www.home-assistant.io/integrations/person/) configured in Home Assistant, circular profile picture filters appear in the toolbar. Tap a person to filter the table to their records. Multiple people can be selected at once. Records with no owner set appear for everyone.
+
 ### Searching your collection
 
 Use the search bar to filter across artist, album, label, genre, and catalog number in real time.
+
+## Sensors
+
+| Sensor | Description |
+| --- | --- |
+| `sensor.vinyl_collection_total_records` | Number of records in your collection (excludes wish list) |
+| `sensor.vinyl_collection_wish_list` | Number of records on your wish list |
 
 ## Services
 

@@ -23,7 +23,7 @@ class VinylCollectionCard extends HTMLElement {
     this._sortDir = 1;
     this._deleteId = null;
     this._activeTab = "collection";
-    this._selectedUser = "all";
+    this._selectedPersons = new Set();
     this._loading = false;
     this._saving = false;
     this._discogsResults = [];
@@ -62,8 +62,21 @@ class VinylCollectionCard extends HTMLElement {
     if (!this._hass) return [];
     return Object.entries(this._hass.states)
       .filter(([id]) => id.startsWith("person."))
-      .map(([id, state]) => ({ id, name: state.attributes.friendly_name || id.replace("person.", "") }))
+      .map(([id, state]) => ({
+        id,
+        name: state.attributes.friendly_name || id.replace("person.", ""),
+        picture: state.attributes.entity_picture || null,
+      }))
       .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  _personChipHTML(person, selected, size) {
+    size = size || 36;
+    const initials = person.name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+    const inner = person.picture
+      ? "<img src=\"" + this._esc(person.picture) + "\" style=\"width:100%;height:100%;object-fit:cover;\"/>"
+      : this._esc(initials);
+    return "<div class=\"person-chip" + (selected ? " selected" : "") + "\" data-person-id=\"" + this._esc(person.id) + "\" title=\"" + this._esc(person.name) + "\" style=\"width:" + size + "px;height:" + size + "px;\">" + inner + "</div>";
   }
 
   async _checkDiscogsToken() {
@@ -382,12 +395,10 @@ class VinylCollectionCard extends HTMLElement {
       ".toggle-switch input:checked + .toggle-slider { background: var(--primary-color); }" +
       ".toggle-switch input:checked + .toggle-slider:before { transform: translateX(18px); }" +
       ".section-divider { border: none; border-top: 1px solid var(--divider-color, #ccc); margin: 4px 0; }" +
-      ".user-filter { display: none; gap: 4px; align-items: center; flex-shrink: 0; }" +
-      ".user-pill { padding: 4px 10px; border-radius: 14px; font-size: 11px; cursor: pointer; border: 1px solid var(--divider-color, #ccc); background: none; color: var(--secondary-text-color); font-family: inherit; white-space: nowrap; }" +
-      ".user-pill.active { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: var(--primary-color); }" +
+      ".user-filter { display: none; gap: 6px; align-items: center; flex-shrink: 0; }" +
+      ".person-chip { border-radius: 50%; border: 2px solid transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: var(--secondary-background-color); color: var(--secondary-text-color); user-select: none; overflow: hidden; flex-shrink: 0; transition: border-color 0.15s; }" +
+      ".person-chip.selected { border-color: var(--primary-color); }" +
       ".owner-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0; }" +
-      ".owner-chip { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--divider-color, #ccc); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: var(--secondary-background-color); color: var(--secondary-text-color); user-select: none; transition: all 0.15s; flex-shrink: 0; }" +
-      ".owner-chip.selected { border-color: var(--primary-color); background: var(--primary-color); color: var(--text-primary-color, #fff); }" +
       ".toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }" +
       ".search-input { flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--divider-color, #ccc); background: var(--input-fill-color, var(--secondary-background-color, #f5f5f5)); color: var(--primary-text-color); font-size: 14px; font-family: inherit; outline: none; }" +
       ".search-input:focus { border-color: var(--primary-color); }" +
@@ -710,11 +721,8 @@ class VinylCollectionCard extends HTMLElement {
       if (this._isMultiUser()) {
         ownerSection.style.display = "block";
         const ownedBy = r.owned_by || [];
-        ownerChips.innerHTML = persons.map(p => {
-          const initials = p.name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-          return "<div class=\"owner-chip" + (ownedBy.includes(p.id) ? " selected" : "") + "\" data-person-id=\"" + this._esc(p.id) + "\" title=\"" + this._esc(p.name) + "\">" + this._esc(initials) + "</div>";
-        }).join("");
-        ownerChips.querySelectorAll(".owner-chip").forEach(chip => {
+        ownerChips.innerHTML = persons.map(p => this._personChipHTML(p, ownedBy.includes(p.id), 36)).join("");
+        ownerChips.querySelectorAll(".person-chip").forEach(chip => {
           chip.addEventListener("click", () => chip.classList.toggle("selected"));
         });
       } else {
@@ -797,7 +805,7 @@ class VinylCollectionCard extends HTMLElement {
     if (r.record_id) data.record_id = r.record_id;
     data.is_wishlist = !!root.querySelector("#f-is-wishlist").checked;
     if (this._isMultiUser()) {
-      data.owned_by = Array.from(root.querySelectorAll("#owner-chips .owner-chip.selected"))
+      data.owned_by = Array.from(root.querySelectorAll("#owner-chips .person-chip.selected"))
         .map(chip => chip.dataset.personId);
     }
 
@@ -844,9 +852,9 @@ class VinylCollectionCard extends HTMLElement {
 
     const records = this._sortedRecords().filter(r => {
       if (this._activeTab === "wishlist" ? !r.is_wishlist : !!r.is_wishlist) return false;
-      if (this._isMultiUser() && this._selectedUser !== "all") {
+      if (this._isMultiUser() && this._selectedPersons.size > 0) {
         const owners = r.owned_by || [];
-        if (!owners.includes(this._selectedUser)) return false;
+        if (!Array.from(this._selectedPersons).some(id => owners.includes(id))) return false;
       }
       return true;
     });
@@ -910,14 +918,13 @@ class VinylCollectionCard extends HTMLElement {
     if (persons.length <= 1) { container.style.display = "none"; return; }
 
     container.style.display = "flex";
-    container.innerHTML = [{ id: "all", name: "Everyone" }, ...persons].map(p =>
-      "<button class=\"user-pill" + (this._selectedUser === p.id ? " active" : "") + "\" data-user=\"" + this._esc(p.id) + "\">" +
-      this._esc(p.name) + "</button>"
-    ).join("");
+    container.innerHTML = persons.map(p => this._personChipHTML(p, this._selectedPersons.has(p.id), 30)).join("");
 
-    container.querySelectorAll(".user-pill").forEach(pill => {
-      pill.addEventListener("click", () => {
-        this._selectedUser = pill.dataset.user;
+    container.querySelectorAll(".person-chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        const id = chip.dataset.personId;
+        if (this._selectedPersons.has(id)) this._selectedPersons.delete(id);
+        else this._selectedPersons.add(id);
         this._renderUserFilter();
         this._renderTable();
       });

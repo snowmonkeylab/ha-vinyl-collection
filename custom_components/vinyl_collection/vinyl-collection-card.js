@@ -383,8 +383,6 @@ class VinylCollectionCard extends HTMLElement {
       "* { box-sizing: border-box; margin: 0; padding: 0; }" +
       ":host { display: block; font-family: var(--paper-font-body1_-_font-family, sans-serif); }" +
       "ha-card { padding: 16px 20px; }" +
-      ":host(.compact) table { display: none; }" +
-      ":host(.compact) .mobile-list { display: flex; }" +
       ".tab-bar { display: flex; gap: 0; margin-bottom: 12px; border-bottom: 2px solid var(--divider-color, #ccc); }" +
       ".tab { padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--secondary-text-color); border-bottom: 2px solid transparent; margin-bottom: -2px; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; }" +
       ".tab.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }" +
@@ -636,7 +634,11 @@ class VinylCollectionCard extends HTMLElement {
 
     new ResizeObserver(entries => {
       const width = entries[0].contentRect.width;
-      this.classList.toggle("compact", width < 480);
+      const table = this.shadowRoot.querySelector("table");
+      const mobileList = this.shadowRoot.querySelector("#mobile-list");
+      const isCompact = width > 0 && width < 480;
+      if (table) table.style.display = isCompact ? "none" : "";
+      if (mobileList) mobileList.style.display = isCompact ? "flex" : "none";
     }).observe(this);
 
     root.querySelector("#search-input").addEventListener("input", e => this._onSearchInput(e.target.value));

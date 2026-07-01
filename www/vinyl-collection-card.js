@@ -913,7 +913,6 @@ class VinylCollectionCard extends HTMLElement {
       "<td>" + this._esc(r.genre || "") + "</td>" +
       "<td class=\"actions\">" +
       (r.spotify_uri ? "<button class=\"icon-btn play-btn\" data-id=\"" + r.record_id + "\" data-action=\"play\" title=\"Play on Spotify\"><ha-icon icon=\"mdi:spotify\"></ha-icon></button>" : "") +
-      "<button class=\"icon-btn\" data-id=\"" + r.record_id + "\" data-action=\"edit\" title=\"Edit\"><ha-icon icon=\"mdi:pencil\"></ha-icon></button>" +
       "<button class=\"icon-btn\" data-id=\"" + r.record_id + "\" data-action=\"delete\" title=\"Delete\"><ha-icon icon=\"mdi:delete\"></ha-icon></button>" +
       "</td></tr>"
     ).join("");
@@ -932,8 +931,7 @@ class VinylCollectionCard extends HTMLElement {
         e.stopPropagation();
         const id = btn.dataset.id;
         const rec = this._records.find(r => r.record_id === id);
-        if (btn.dataset.action === "edit") { if (rec) this._openDialog(rec); }
-        else if (btn.dataset.action === "play") { if (rec) this._openPlayPicker(rec); }
+        if (btn.dataset.action === "play") { if (rec) this._openPlayPicker(rec); }
         else { this._openDeleteDialog(id); }
       });
     });
@@ -975,7 +973,6 @@ class VinylCollectionCard extends HTMLElement {
           const rect = btn.getBoundingClientRect();
           fixedMenu.innerHTML =
             (rec.spotify_uri ? "<div class=\"overflow-item\" data-action=\"play\"><ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;width:18px;height:18px;\"></ha-icon>Play</div>" : "") +
-            "<div class=\"overflow-item\" data-action=\"edit\"><ha-icon icon=\"mdi:pencil\" style=\"width:18px;height:18px;\"></ha-icon>Edit</div>" +
             "<div class=\"overflow-item danger\" data-action=\"delete\"><ha-icon icon=\"mdi:delete\" style=\"width:18px;height:18px;\"></ha-icon>Delete</div>";
           fixedMenu.style.top = (rect.bottom + 4) + "px";
           fixedMenu.style.left = Math.min(rect.right - 130, window.innerWidth - 140) + "px";

@@ -922,8 +922,8 @@ class VinylCollectionCard extends HTMLElement {
       return;
     }
 
-    // Desktop table
-    tbody.innerHTML = pagedRecords.map(r =>
+    // Desktop table — show all records
+    tbody.innerHTML = records.map(r =>
       "<tr>" +
       "<td class=\"cover-cell\">" + this._coverHTML(r.cover_url, 40) + "</td>" +
       "<td>" + this._esc(r.artist) + "</td>" +

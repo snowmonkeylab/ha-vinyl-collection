@@ -24,6 +24,8 @@ class VinylCollectionCard extends HTMLElement {
     this._deleteId = null;
     this._activeTab = "collection";
     this._selectedPersons = new Set();
+    this._page = 1;
+    this._pageSize = 25;
     this._loading = false;
     this._saving = false;
     this._discogsResults = [];
@@ -136,7 +138,12 @@ class VinylCollectionCard extends HTMLElement {
 
   _onSearchInput(v) {
     clearTimeout(this._searchTimeout);
+    this._page = 1;
     this._searchTimeout = setTimeout(() => this._search(v), 220);
+  }
+
+  _resetPage() {
+    this._page = 1;
   }
 
   async _saveRecord(data) {
@@ -540,6 +547,7 @@ class VinylCollectionCard extends HTMLElement {
       "<tbody id=\"tbody\"></tbody>" +
       "</table>" +
       "<div class=\"mobile-list\" id=\"mobile-list\"></div>" +
+      "<div id=\"scroll-sentinel\" style=\"height:4px;\"></div>" +
       "</div>" +
       "<div class=\"overflow-menu-fixed\" id=\"overflow-menu-fixed\"></div>" +
       "</ha-card>" +
@@ -630,18 +638,33 @@ class VinylCollectionCard extends HTMLElement {
     root.querySelectorAll(".tab").forEach(tab => {
       tab.addEventListener("click", () => {
         this._activeTab = tab.dataset.tab;
+        this._resetPage();
         root.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === this._activeTab));
         this._renderTable();
       });
     });
 
+    const sentinel = root.querySelector("#scroll-sentinel");
+    const tableWrap = root.querySelector(".table-wrap");
+    new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && this._page * this._pageSize < this._filteredCount) {
+        this._page++;
+        this._renderTable();
+      }
+    }, { root: tableWrap, threshold: 0.1 }).observe(sentinel);
+
     new ResizeObserver(entries => {
       const width = entries[0].contentRect.width;
       const table = this.shadowRoot.querySelector("table");
       const mobileList = this.shadowRoot.querySelector("#mobile-list");
+      const tableWrap = this.shadowRoot.querySelector(".table-wrap");
       const isCompact = width > 0 && width < 600;
       if (table) table.style.display = isCompact ? "none" : "";
       if (mobileList) mobileList.style.display = isCompact ? "flex" : "none";
+      if (tableWrap) {
+        tableWrap.style.height = isCompact ? "500px" : "";
+        tableWrap.style.overflowY = isCompact ? "auto" : "";
+      }
     }).observe(this);
 
     root.querySelector("#search-input").addEventListener("input", e => this._onSearchInput(e.target.value));
@@ -886,6 +909,8 @@ class VinylCollectionCard extends HTMLElement {
       return true;
     });
 
+    this._filteredCount = records.length;
+    const pagedRecords = records.slice(0, this._page * this._pageSize);
     count.textContent = records.length + " record" + (records.length !== 1 ? "s" : "");
 
     root.querySelectorAll("#thead th[data-col]").forEach(th => {
@@ -902,7 +927,7 @@ class VinylCollectionCard extends HTMLElement {
       return;
     }
 
-    // Desktop table
+    // Desktop table — show all records
     tbody.innerHTML = records.map(r =>
       "<tr>" +
       "<td class=\"cover-cell\">" + this._coverHTML(r.cover_url, 40) + "</td>" +
@@ -938,7 +963,7 @@ class VinylCollectionCard extends HTMLElement {
 
     // Mobile card list
     if (mobileList) {
-      mobileList.innerHTML = records.map(r => {
+      mobileList.innerHTML = pagedRecords.map(r => {
         const meta = [r.year, r.genre, r.rating ? "★".repeat(r.rating) : ""].filter(Boolean).join(" · ");
         return "<div class=\"mobile-card\" data-id=\"" + r.record_id + "\">" +
           "<div class=\"mobile-card-body\" style=\"display:flex;align-items:center;gap:10px;flex:1;min-width:0;\">" +
@@ -1011,6 +1036,7 @@ class VinylCollectionCard extends HTMLElement {
         const id = chip.dataset.personId;
         if (this._selectedPersons.has(id)) this._selectedPersons.delete(id);
         else this._selectedPersons.add(id);
+        this._resetPage();
         this._renderUserFilter();
         this._renderTable();
       });

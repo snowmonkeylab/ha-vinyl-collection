@@ -412,7 +412,7 @@ class VinylCollectionCard extends HTMLElement {
       ".add-btn { padding: 0 16px; height: 36px; border-radius: 18px; border: none; background: var(--primary-color); color: var(--text-primary-color, #fff); font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap; font-family: inherit; }" +
       ".add-btn:hover { opacity: 0.85; }" +
       ".count { font-size: 12px; color: var(--secondary-text-color); margin-bottom: 8px; }" +
-      ".table-wrap { overflow-x: auto; position: relative; min-height: 60px; }" +
+      ".table-wrap { overflow-y: auto; overflow-x: auto; position: relative; height: 500px; }" +
       ".mobile-list { display: none; flex-direction: column; }" +
       ".mobile-card { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--divider-color); cursor: pointer; position: relative; }" +
       ".mobile-card:last-child { border-bottom: none; }" +
@@ -645,12 +645,13 @@ class VinylCollectionCard extends HTMLElement {
     });
 
     const sentinel = root.querySelector("#scroll-sentinel");
+    const tableWrap = root.querySelector(".table-wrap");
     new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && this._page * this._pageSize < this._filteredCount) {
         this._page++;
         this._renderTable();
       }
-    }, { threshold: 0.1 }).observe(sentinel);
+    }, { root: tableWrap, threshold: 0.1 }).observe(sentinel);
 
     new ResizeObserver(entries => {
       const width = entries[0].contentRect.width;

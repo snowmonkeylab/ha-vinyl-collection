@@ -382,7 +382,7 @@ class VinylCollectionCard extends HTMLElement {
       "<style>" +
       "* { box-sizing: border-box; margin: 0; padding: 0; }" +
       ":host { display: block; font-family: var(--paper-font-body1_-_font-family, sans-serif); }" +
-      "ha-card { padding: 16px 20px; }" +
+      "ha-card { padding: 16px 20px; container-type: inline-size; }" +
       ".tab-bar { display: flex; gap: 0; margin-bottom: 12px; border-bottom: 2px solid var(--divider-color, #ccc); }" +
       ".tab { padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--secondary-text-color); border-bottom: 2px solid transparent; margin-bottom: -2px; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; }" +
       ".tab.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }" +
@@ -406,6 +406,21 @@ class VinylCollectionCard extends HTMLElement {
       ".add-btn:hover { opacity: 0.85; }" +
       ".count { font-size: 12px; color: var(--secondary-text-color); margin-bottom: 8px; }" +
       ".table-wrap { overflow-x: auto; position: relative; min-height: 60px; }" +
+      ".mobile-list { display: none; flex-direction: column; }" +
+      ".mobile-card { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--divider-color); cursor: pointer; position: relative; }" +
+      ".mobile-card:last-child { border-bottom: none; }" +
+      ".mobile-card:active { background: var(--secondary-background-color); }" +
+      ".mobile-card-info { flex: 1; min-width: 0; }" +
+      ".mobile-card-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }" +
+      ".mobile-card-subtitle { font-size: 12px; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }" +
+      ".mobile-card-meta { font-size: 11px; color: var(--secondary-text-color); margin-top: 2px; }" +
+      ".overflow-wrap { position: relative; flex-shrink: 0; }" +
+      ".overflow-menu { position: absolute; right: 0; top: 100%; background: var(--card-background-color, #fff); border: 1px solid var(--divider-color, #ccc); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); z-index: 100; min-width: 120px; overflow: hidden; display: none; }" +
+      ".overflow-menu.open { display: block; }" +
+      ".overflow-item { padding: 10px 16px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: var(--primary-text-color); }" +
+      ".overflow-item:hover { background: var(--secondary-background-color); }" +
+      ".overflow-item.danger { color: var(--error-color, #db4437); }" +
+      "@container (max-width: 480px) { table { display: none; } .mobile-list { display: flex; } }" +
       "table { width: 100%; border-collapse: collapse; font-size: 13px; }" +
       "thead th { text-align: left; padding: 6px 8px; font-size: 12px; color: var(--secondary-text-color); border-bottom: 1px solid var(--divider-color); cursor: pointer; user-select: none; white-space: nowrap; }" +
       "thead th:hover { color: var(--primary-text-color); }" +
@@ -523,6 +538,7 @@ class VinylCollectionCard extends HTMLElement {
       "</tr></thead>" +
       "<tbody id=\"tbody\"></tbody>" +
       "</table>" +
+      "<div class=\"mobile-list\" id=\"mobile-list\"></div>" +
       "</div>" +
       "</ha-card>" +
       "<div class=\"overlay\" id=\"dialog-overlay\">" +
@@ -867,11 +883,15 @@ class VinylCollectionCard extends HTMLElement {
       th.querySelector(".arrow").textContent = isActive ? (this._sortDir === 1 ? " v" : " ^") : " -";
     });
 
+    const mobileList = root.querySelector("#mobile-list");
+
     if (records.length === 0) {
       tbody.innerHTML = "<tr><td colspan=\"7\" class=\"empty\">No records found</td></tr>";
+      if (mobileList) mobileList.innerHTML = "<div class=\"empty\">No records found</div>";
       return;
     }
 
+    // Desktop table
     tbody.innerHTML = records.map(r =>
       "<tr>" +
       "<td class=\"cover-cell\">" + this._coverHTML(r.cover_url, 40) + "</td>" +
@@ -882,29 +902,80 @@ class VinylCollectionCard extends HTMLElement {
       "<td>" + this._esc(r.genre || "") + "</td>" +
       "<td class=\"actions\">" +
       (r.spotify_uri ? "<button class=\"icon-btn play-btn\" data-id=\"" + r.record_id + "\" data-action=\"play\" title=\"Play on Spotify\"><ha-icon icon=\"mdi:spotify\"></ha-icon></button>" : "") +
-      "<button class=\"icon-btn\" data-id=\"" + r.record_id + "\" data-action=\"edit\" title=\"Edit\">" +
-      "<ha-icon icon=\"mdi:pencil\"></ha-icon>" +
-      "</button>" +
-      "<button class=\"icon-btn\" data-id=\"" + r.record_id + "\" data-action=\"delete\" title=\"Delete\">" +
-      "<ha-icon icon=\"mdi:delete\"></ha-icon>" +
-      "</button>" +
-      "</td>" +
-      "</tr>"
+      "<button class=\"icon-btn\" data-id=\"" + r.record_id + "\" data-action=\"edit\" title=\"Edit\"><ha-icon icon=\"mdi:pencil\"></ha-icon></button>" +
+      "<button class=\"icon-btn\" data-id=\"" + r.record_id + "\" data-action=\"delete\" title=\"Delete\"><ha-icon icon=\"mdi:delete\"></ha-icon></button>" +
+      "</td></tr>"
     ).join("");
 
     tbody.querySelectorAll(".icon-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         const id = btn.dataset.id;
         const rec = this._records.find(r => r.record_id === id);
-        if (btn.dataset.action === "edit") {
-          if (rec) this._openDialog(rec);
-        } else if (btn.dataset.action === "play") {
-          if (rec) this._openPlayPicker(rec);
-        } else {
-          this._openDeleteDialog(id);
-        }
+        if (btn.dataset.action === "edit") { if (rec) this._openDialog(rec); }
+        else if (btn.dataset.action === "play") { if (rec) this._openPlayPicker(rec); }
+        else { this._openDeleteDialog(id); }
       });
     });
+
+    // Mobile card list
+    if (mobileList) {
+      mobileList.innerHTML = records.map(r => {
+        const meta = [r.year, r.genre, r.rating ? "★".repeat(r.rating) : ""].filter(Boolean).join(" · ");
+        return "<div class=\"mobile-card\" data-id=\"" + r.record_id + "\">" +
+          "<div class=\"mobile-card-body\" style=\"display:flex;align-items:center;gap:10px;flex:1;min-width:0;\">" +
+          this._coverHTML(r.cover_url, 44) +
+          "<div class=\"mobile-card-info\">" +
+          "<div class=\"mobile-card-title\">" + this._esc(r.artist) + "</div>" +
+          "<div class=\"mobile-card-subtitle\">" + this._esc(r.album) + "</div>" +
+          (meta ? "<div class=\"mobile-card-meta\">" + this._esc(meta) + "</div>" : "") +
+          "</div></div>" +
+          "<div class=\"overflow-wrap\">" +
+          "<button class=\"icon-btn overflow-btn\" data-id=\"" + r.record_id + "\">⋮</button>" +
+          "<div class=\"overflow-menu\" id=\"overflow-" + r.record_id + "\">" +
+          (r.spotify_uri ? "<div class=\"overflow-item\" data-id=\"" + r.record_id + "\" data-action=\"play\"><ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;\"></ha-icon>Play</div>" : "") +
+          "<div class=\"overflow-item\" data-id=\"" + r.record_id + "\" data-action=\"edit\"><ha-icon icon=\"mdi:pencil\"></ha-icon>Edit</div>" +
+          "<div class=\"overflow-item danger\" data-id=\"" + r.record_id + "\" data-action=\"delete\"><ha-icon icon=\"mdi:delete\"></ha-icon>Delete</div>" +
+          "</div></div></div>";
+      }).join("");
+
+      // Mobile card body tap = edit
+      mobileList.querySelectorAll(".mobile-card-body").forEach(body => {
+        body.addEventListener("click", () => {
+          const id = body.closest(".mobile-card").dataset.id;
+          const rec = this._records.find(r => r.record_id === id);
+          if (rec) this._openDialog(rec);
+        });
+      });
+
+      // Overflow toggle
+      mobileList.querySelectorAll(".overflow-btn").forEach(btn => {
+        btn.addEventListener("click", e => {
+          e.stopPropagation();
+          const menu = mobileList.querySelector("#overflow-" + btn.dataset.id);
+          const isOpen = menu.classList.contains("open");
+          mobileList.querySelectorAll(".overflow-menu").forEach(m => m.classList.remove("open"));
+          if (!isOpen) menu.classList.add("open");
+        });
+      });
+
+      // Overflow actions
+      mobileList.querySelectorAll(".overflow-item").forEach(item => {
+        item.addEventListener("click", e => {
+          e.stopPropagation();
+          const id = item.dataset.id;
+          const rec = this._records.find(r => r.record_id === id);
+          mobileList.querySelectorAll(".overflow-menu").forEach(m => m.classList.remove("open"));
+          if (item.dataset.action === "edit") { if (rec) this._openDialog(rec); }
+          else if (item.dataset.action === "play") { if (rec) this._openPlayPicker(rec); }
+          else { this._openDeleteDialog(id); }
+        });
+      });
+
+      // Close overflow on outside click
+      document.addEventListener("click", () => {
+        mobileList.querySelectorAll(".overflow-menu").forEach(m => m.classList.remove("open"));
+      }, { once: false, capture: false });
+    }
   }
 
   _isMultiUser() {

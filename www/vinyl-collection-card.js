@@ -414,7 +414,9 @@ class VinylCollectionCard extends HTMLElement {
       ".mobile-card-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }" +
       ".mobile-card-subtitle { font-size: 12px; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }" +
       ".mobile-card-meta { font-size: 11px; color: var(--secondary-text-color); margin-top: 2px; }" +
-      ".overflow-wrap { position: relative; flex-shrink: 0; }" +
+      ".overflow-wrap { position: relative; flex-shrink: 0; display: flex; align-items: center; }" +
+      ".overflow-btn { background: var(--secondary-background-color); border: 1px solid var(--divider-color, #ccc); border-radius: 8px; padding: 0 6px; height: 32px; font-size: 18px; opacity: 1; color: var(--primary-text-color); }" +
+      ".overflow-btn:hover { background: var(--divider-color, #ccc); }" +
       ".overflow-menu { position: absolute; right: 0; top: 100%; background: var(--card-background-color, #fff); border: 1px solid var(--divider-color, #ccc); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); z-index: 100; min-width: 120px; overflow: hidden; display: none; }" +
       ".overflow-menu.open { display: block; }" +
       ".overflow-item { padding: 10px 16px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: var(--primary-text-color); }" +
@@ -434,7 +436,7 @@ class VinylCollectionCard extends HTMLElement {
       ".icon-btn { background: none; border: none; cursor: pointer; padding: 4px; border-radius: 4px; opacity: 0.6; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; color: var(--secondary-text-color); }" +
       ".icon-btn:hover { opacity: 1; background: var(--secondary-background-color); color: var(--primary-text-color); }" +
       ".stars { font-size: 14px; letter-spacing: 1px; color: var(--disabled-text-color, #ccc); }" +
-      ".stars .star.on { color: #f4a820; }" +
+      ".stars .star.on { color: var(--primary-text-color); }" +
       ".empty { text-align: center; padding: 32px; color: var(--secondary-text-color); font-size: 13px; }" +
       "@keyframes spin { to { transform: rotate(360deg); } }" +
       ".spinner { width: 24px; height: 24px; border: 3px solid var(--divider-color, #ccc); border-top-color: var(--primary-color); border-radius: 50%; animation: spin 0.7s linear infinite; }" +
@@ -474,7 +476,7 @@ class VinylCollectionCard extends HTMLElement {
       ".suggestion:hover { background: var(--secondary-background-color); }" +
       ".star-pick { display: flex; gap: 8px; padding: 4px 0; }" +
       ".star-pick .star { font-size: 28px; cursor: pointer; color: var(--disabled-text-color, #ccc); line-height: 1; }" +
-      ".star-pick .star.on { color: #f4a820; }" +
+      ".star-pick .star.on { color: var(--primary-text-color); }" +
       ".dialog-error { display: none; font-size: 13px; color: var(--error-color, #db4437); }" +
       ".dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 4px; }" +
       ".btn { padding: 0 16px; height: 36px; border-radius: 18px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; border: none; display: inline-flex; align-items: center; }" +
@@ -636,7 +638,7 @@ class VinylCollectionCard extends HTMLElement {
       const width = entries[0].contentRect.width;
       const table = this.shadowRoot.querySelector("table");
       const mobileList = this.shadowRoot.querySelector("#mobile-list");
-      const isCompact = width > 0 && width < 480;
+      const isCompact = width > 0 && width < 600;
       if (table) table.style.display = isCompact ? "none" : "";
       if (mobileList) mobileList.style.display = isCompact ? "flex" : "none";
     }).observe(this);

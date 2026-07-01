@@ -382,7 +382,9 @@ class VinylCollectionCard extends HTMLElement {
       "<style>" +
       "* { box-sizing: border-box; margin: 0; padding: 0; }" +
       ":host { display: block; font-family: var(--paper-font-body1_-_font-family, sans-serif); }" +
-      "ha-card { padding: 16px 20px; container-type: inline-size; }" +
+      "ha-card { padding: 16px 20px; }" +
+      ":host(.compact) table { display: none; }" +
+      ":host(.compact) .mobile-list { display: flex; }" +
       ".tab-bar { display: flex; gap: 0; margin-bottom: 12px; border-bottom: 2px solid var(--divider-color, #ccc); }" +
       ".tab { padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--secondary-text-color); border-bottom: 2px solid transparent; margin-bottom: -2px; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; }" +
       ".tab.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }" +
@@ -420,7 +422,6 @@ class VinylCollectionCard extends HTMLElement {
       ".overflow-item { padding: 10px 16px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: var(--primary-text-color); }" +
       ".overflow-item:hover { background: var(--secondary-background-color); }" +
       ".overflow-item.danger { color: var(--error-color, #db4437); }" +
-      "@container (max-width: 480px) { table { display: none; } .mobile-list { display: flex; } }" +
       "table { width: 100%; border-collapse: collapse; font-size: 13px; }" +
       "thead th { text-align: left; padding: 6px 8px; font-size: 12px; color: var(--secondary-text-color); border-bottom: 1px solid var(--divider-color); cursor: pointer; user-select: none; white-space: nowrap; }" +
       "thead th:hover { color: var(--primary-text-color); }" +
@@ -632,6 +633,11 @@ class VinylCollectionCard extends HTMLElement {
         this._renderTable();
       });
     });
+
+    new ResizeObserver(entries => {
+      const width = entries[0].contentRect.width;
+      this.classList.toggle("compact", width < 480);
+    }).observe(this);
 
     root.querySelector("#search-input").addEventListener("input", e => this._onSearchInput(e.target.value));
     root.querySelector("#add-btn").addEventListener("click", () => this._openDialog(null));

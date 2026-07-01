@@ -414,11 +414,11 @@ class VinylCollectionCard extends HTMLElement {
       ".mobile-card-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }" +
       ".mobile-card-subtitle { font-size: 12px; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }" +
       ".mobile-card-meta { font-size: 11px; color: var(--secondary-text-color); margin-top: 2px; }" +
-      ".overflow-wrap { position: relative; flex-shrink: 0; display: flex; align-items: center; }" +
-      ".overflow-btn { background: var(--secondary-background-color); border: 1px solid var(--divider-color, #ccc); border-radius: 8px; padding: 0 6px; height: 32px; font-size: 18px; opacity: 1; color: var(--primary-text-color); }" +
-      ".overflow-btn:hover { background: var(--divider-color, #ccc); }" +
-      ".overflow-menu { position: absolute; right: 0; top: 100%; background: var(--card-background-color, #fff); border: 1px solid var(--divider-color, #ccc); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); z-index: 100; min-width: 120px; overflow: hidden; display: none; }" +
-      ".overflow-menu.open { display: block; }" +
+      ".overflow-wrap { flex-shrink: 0; display: flex; align-items: center; }" +
+      ".overflow-btn { background: none; border: none; cursor: pointer; padding: 4px 6px; border-radius: 6px; color: var(--primary-text-color); opacity: 0.7; display: flex; align-items: center; }" +
+      ".overflow-btn:hover { opacity: 1; background: var(--secondary-background-color); }" +
+      ".overflow-menu-fixed { position: fixed; background: var(--card-background-color, #fff); color: var(--primary-text-color); border: 1px solid var(--divider-color, #ccc); border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.25); z-index: 99999; min-width: 130px; overflow: hidden; display: none; }" +
+      ".overflow-menu-fixed.open { display: block; }" +
       ".overflow-item { padding: 10px 16px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: var(--primary-text-color); }" +
       ".overflow-item:hover { background: var(--secondary-background-color); }" +
       ".overflow-item.danger { color: var(--error-color, #db4437); }" +
@@ -428,7 +428,7 @@ class VinylCollectionCard extends HTMLElement {
       "thead th .arrow { margin-left: 3px; opacity: 0.5; font-size: 10px; }" +
       "thead th.active { color: var(--primary-color); }" +
       "thead th.active .arrow { opacity: 1; }" +
-      "tbody tr { border-bottom: 1px solid var(--divider-color); }" +
+      "tbody tr { border-bottom: 1px solid var(--divider-color); cursor: pointer; }" +
       "tbody tr:hover { background: var(--secondary-background-color); }" +
       "td { padding: 6px 8px; vertical-align: middle; }" +
       "td.cover-cell { width: 48px; padding: 4px 8px; }" +
@@ -541,6 +541,7 @@ class VinylCollectionCard extends HTMLElement {
       "</table>" +
       "<div class=\"mobile-list\" id=\"mobile-list\"></div>" +
       "</div>" +
+      "<div class=\"overflow-menu-fixed\" id=\"overflow-menu-fixed\"></div>" +
       "</ha-card>" +
       "<div class=\"overlay\" id=\"dialog-overlay\">" +
       "<div class=\"dialog\">" +
@@ -917,8 +918,18 @@ class VinylCollectionCard extends HTMLElement {
       "</td></tr>"
     ).join("");
 
+    tbody.querySelectorAll("tr").forEach(tr => {
+      tr.addEventListener("click", e => {
+        if (e.target.closest(".icon-btn")) return;
+        const id = tr.querySelector(".icon-btn").dataset.id;
+        const rec = this._records.find(r => r.record_id === id);
+        if (rec) this._openDialog(rec);
+      });
+    });
+
     tbody.querySelectorAll(".icon-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
         const id = btn.dataset.id;
         const rec = this._records.find(r => r.record_id === id);
         if (btn.dataset.action === "edit") { if (rec) this._openDialog(rec); }
@@ -940,12 +951,8 @@ class VinylCollectionCard extends HTMLElement {
           (meta ? "<div class=\"mobile-card-meta\">" + this._esc(meta) + "</div>" : "") +
           "</div></div>" +
           "<div class=\"overflow-wrap\">" +
-          "<button class=\"icon-btn overflow-btn\" data-id=\"" + r.record_id + "\">⋮</button>" +
-          "<div class=\"overflow-menu\" id=\"overflow-" + r.record_id + "\">" +
-          (r.spotify_uri ? "<div class=\"overflow-item\" data-id=\"" + r.record_id + "\" data-action=\"play\"><ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;\"></ha-icon>Play</div>" : "") +
-          "<div class=\"overflow-item\" data-id=\"" + r.record_id + "\" data-action=\"edit\"><ha-icon icon=\"mdi:pencil\"></ha-icon>Edit</div>" +
-          "<div class=\"overflow-item danger\" data-id=\"" + r.record_id + "\" data-action=\"delete\"><ha-icon icon=\"mdi:delete\"></ha-icon>Delete</div>" +
-          "</div></div></div>";
+          "<button class=\"overflow-btn\" data-id=\"" + r.record_id + "\"><ha-icon icon=\"mdi:dots-vertical\" style=\"width:20px;height:20px;\"></ha-icon></button>" +
+          "</div></div>";
       }).join("");
 
       // Mobile card body tap = edit
@@ -957,34 +964,35 @@ class VinylCollectionCard extends HTMLElement {
         });
       });
 
-      // Overflow toggle
+      // Overflow toggle — fixed positioned menu
+      const fixedMenu = root.querySelector("#overflow-menu-fixed");
       mobileList.querySelectorAll(".overflow-btn").forEach(btn => {
         btn.addEventListener("click", e => {
           e.stopPropagation();
-          const menu = mobileList.querySelector("#overflow-" + btn.dataset.id);
-          const isOpen = menu.classList.contains("open");
-          mobileList.querySelectorAll(".overflow-menu").forEach(m => m.classList.remove("open"));
-          if (!isOpen) menu.classList.add("open");
-        });
-      });
-
-      // Overflow actions
-      mobileList.querySelectorAll(".overflow-item").forEach(item => {
-        item.addEventListener("click", e => {
-          e.stopPropagation();
-          const id = item.dataset.id;
+          const id = btn.dataset.id;
           const rec = this._records.find(r => r.record_id === id);
-          mobileList.querySelectorAll(".overflow-menu").forEach(m => m.classList.remove("open"));
-          if (item.dataset.action === "edit") { if (rec) this._openDialog(rec); }
-          else if (item.dataset.action === "play") { if (rec) this._openPlayPicker(rec); }
-          else { this._openDeleteDialog(id); }
+          if (!rec) return;
+          const rect = btn.getBoundingClientRect();
+          fixedMenu.innerHTML =
+            (rec.spotify_uri ? "<div class=\"overflow-item\" data-action=\"play\"><ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;width:18px;height:18px;\"></ha-icon>Play</div>" : "") +
+            "<div class=\"overflow-item\" data-action=\"edit\"><ha-icon icon=\"mdi:pencil\" style=\"width:18px;height:18px;\"></ha-icon>Edit</div>" +
+            "<div class=\"overflow-item danger\" data-action=\"delete\"><ha-icon icon=\"mdi:delete\" style=\"width:18px;height:18px;\"></ha-icon>Delete</div>";
+          fixedMenu.style.top = (rect.bottom + 4) + "px";
+          fixedMenu.style.left = Math.min(rect.right - 130, window.innerWidth - 140) + "px";
+          fixedMenu.classList.toggle("open");
+          fixedMenu.querySelectorAll(".overflow-item").forEach(item => {
+            item.addEventListener("click", e2 => {
+              e2.stopPropagation();
+              fixedMenu.classList.remove("open");
+              if (item.dataset.action === "edit") { if (rec) this._openDialog(rec); }
+              else if (item.dataset.action === "play") { if (rec) this._openPlayPicker(rec); }
+              else { this._openDeleteDialog(rec.record_id); }
+            }, { once: true });
+          });
         });
       });
 
-      // Close overflow on outside click
-      document.addEventListener("click", () => {
-        mobileList.querySelectorAll(".overflow-menu").forEach(m => m.classList.remove("open"));
-      }, { once: false, capture: false });
+      document.addEventListener("click", () => fixedMenu.classList.remove("open"));
     }
   }
 

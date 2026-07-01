@@ -412,7 +412,7 @@ class VinylCollectionCard extends HTMLElement {
       ".add-btn { padding: 0 16px; height: 36px; border-radius: 18px; border: none; background: var(--primary-color); color: var(--text-primary-color, #fff); font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap; font-family: inherit; }" +
       ".add-btn:hover { opacity: 0.85; }" +
       ".count { font-size: 12px; color: var(--secondary-text-color); margin-bottom: 8px; }" +
-      ".table-wrap { overflow-y: auto; overflow-x: auto; position: relative; height: 500px; }" +
+      ".table-wrap { overflow-x: auto; position: relative; min-height: 60px; }" +
       ".mobile-list { display: none; flex-direction: column; }" +
       ".mobile-card { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--divider-color); cursor: pointer; position: relative; }" +
       ".mobile-card:last-child { border-bottom: none; }" +
@@ -657,9 +657,14 @@ class VinylCollectionCard extends HTMLElement {
       const width = entries[0].contentRect.width;
       const table = this.shadowRoot.querySelector("table");
       const mobileList = this.shadowRoot.querySelector("#mobile-list");
+      const tableWrap = this.shadowRoot.querySelector(".table-wrap");
       const isCompact = width > 0 && width < 600;
       if (table) table.style.display = isCompact ? "none" : "";
       if (mobileList) mobileList.style.display = isCompact ? "flex" : "none";
+      if (tableWrap) {
+        tableWrap.style.height = isCompact ? "500px" : "";
+        tableWrap.style.overflowY = isCompact ? "auto" : "";
+      }
     }).observe(this);
 
     root.querySelector("#search-input").addEventListener("input", e => this._onSearchInput(e.target.value));

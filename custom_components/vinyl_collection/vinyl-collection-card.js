@@ -558,9 +558,8 @@ class VinylCollectionCard extends HTMLElement {
       ".cover-and-fields { display: flex; gap: 14px; align-items: flex-start; }" +
       ".cover-and-fields .fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }" +
       "label { display: block; font-size: 12px; color: var(--secondary-text-color); margin-bottom: 3px; }" +
-      "input[type=text], input[type=number], select, textarea { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--divider-color, #ccc); background: var(--input-fill-color, var(--secondary-background-color, #f5f5f5)); color: var(--primary-text-color); font-size: 14px; font-family: inherit; outline: none; }" +
-      "input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus { border-color: var(--primary-color); }" +
-      "textarea { resize: vertical; min-height: 60px; }" +
+      "input[type=text], input[type=number], select { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--divider-color, #ccc); background: var(--input-fill-color, var(--secondary-background-color, #f5f5f5)); color: var(--primary-text-color); font-size: 14px; font-family: inherit; outline: none; }" +
+      "input[type=text]:focus, input[type=number]:focus, select:focus { border-color: var(--primary-color); }" +
       ".row2 { display: flex; gap: 12px; }" +
       ".row2 > div { flex: 1; }" +
       ".artist-wrap { position: relative; }" +

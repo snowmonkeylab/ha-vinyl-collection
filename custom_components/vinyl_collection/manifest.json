@@ -3,11 +3,11 @@
   "name": "Vinyl Collection",
   "codeowners": ["@snowmonkeylab"],
   "config_flow": true,
-  "documentation": "https://github.com/snowmonkeylab/ha-vinyl-collection",
-  "issue_tracker": "https://github.com/snowmonkeylab/ha-vinyl-collection/issues",
   "dependencies": ["http"],
+  "documentation": "https://github.com/snowmonkeylab/ha-vinyl-collection",
   "integration_type": "service",
   "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/snowmonkeylab/ha-vinyl-collection/issues",
   "requirements": [],
   "version": "0.3.0"
 }

@@ -603,9 +603,12 @@ class VinylCollectionCard extends HTMLElement {
       ".play-picker-dialog { background: var(--card-background-color, #fff); color: var(--primary-text-color); border-radius: 12px; width: 90%; max-width: 360px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); max-height: 80vh; overflow-y: auto; }" +
       ".play-picker-dialog h3 { font-size: 16px; font-weight: 500; }" +
       ".entity-list { display: flex; flex-direction: column; gap: 2px; }" +
-      ".entity-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; border-radius: 6px; font-size: 14px; }" +
+      ".entity-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer; border-radius: 8px; transition: background 0.1s; }" +
       ".entity-item:hover { background: var(--secondary-background-color); }" +
-      ".entity-item.last-used { font-weight: 500; }" +
+      ".entity-item.last-used .entity-name { font-weight: 600; }" +
+      ".entity-icon-wrap { width: 36px; height: 36px; border-radius: 50%; background: var(--secondary-background-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }" +
+      ".entity-name { font-size: 14px; line-height: 1.3; }" +
+      ".entity-area { font-size: 11px; color: var(--secondary-text-color); margin-top: 1px; }" +
       "</style>" +
       "<ha-card>" +
       "<div class=\"tab-bar\">" +
@@ -1138,6 +1141,16 @@ class VinylCollectionCard extends HTMLElement {
     return !!(state && (state.attributes.app_id === "music_assistant" || state.attributes.mass_player_type !== undefined));
   }
 
+  _getEntityArea(entityId) {
+    try {
+      const areaId = this._hass.entities[entityId]?.area_id;
+      if (areaId && this._hass.areas && this._hass.areas[areaId]) {
+        return this._hass.areas[areaId].name;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   _getMassPlayers() {
     return this._getMediaPlayers().filter(p => this._isMassEntity(p.entity_id));
   }
@@ -1275,14 +1288,15 @@ class VinylCollectionCard extends HTMLElement {
     if (!players.length) {
       list.innerHTML = "<div style=\"padding:12px;color:var(--secondary-text-color);font-size:13px;\">No Music Assistant players found. Install the Music Assistant integration to enable speaker playback.</div>";
     } else {
-      list.innerHTML = players.map(p =>
-        "<div class=\"entity-item" + (p.entity_id === lastUsed ? " last-used" : "") + "\" data-entity=\"" + this._esc(p.entity_id) + "\">" +
-        "<ha-icon icon=\"mdi:music-note\" style=\"width:20px;height:20px;flex-shrink:0;color:#1DB954;\"></ha-icon>" +
-        "<div style=\"flex:1;min-width:0;\">" +
-        "<div>" + this._esc(p.name) + "</div>" +
-        "<div style=\"font-size:11px;color:var(--secondary-text-color);\">Music Assistant</div>" +
-        "</div></div>"
-      ).join("");
+      list.innerHTML = players.map(p => {
+        const area = this._getEntityArea(p.entity_id);
+        return "<div class=\"entity-item" + (p.entity_id === lastUsed ? " last-used" : "") + "\" data-entity=\"" + this._esc(p.entity_id) + "\">" +
+          "<div class=\"entity-icon-wrap\"><ha-icon icon=\"mdi:speaker-wireless\" style=\"width:20px;height:20px;\"></ha-icon></div>" +
+          "<div style=\"flex:1;min-width:0;\">" +
+          "<div class=\"entity-name\">" + this._esc(p.name) + "</div>" +
+          (area ? "<div class=\"entity-area\">" + this._esc(area) + "</div>" : "") +
+          "</div></div>";
+      }).join("");
       list.querySelectorAll(".entity-item").forEach(el => {
         el.addEventListener("click", () => {
           this._playRecord(el.dataset.entity, this._playPickerRecord);

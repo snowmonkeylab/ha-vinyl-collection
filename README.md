@@ -9,7 +9,7 @@ Spotify from your dashboard.
 
 - **Local-only storage** — uses Home Assistant's built-in `Store`, no external database
 - **Instant search** across artist, album, label, genre, and catalog number
-- **Discogs integration** — search Discogs to auto-fill artist, album, year, label, catalog number, and cover art when adding a record
+- **Discogs integration** — search Discogs to auto-fill artist, album, year, label, catalog number, and cover art when adding a record; view the tracklist for any search result to confirm you have the right album before adding it
 - **Spotify integration** — link records to Spotify and play them on any Music Assistant speaker with a single tap
 - **Wish List** — tag records as wanted, with a dedicated tab separate from your collection
 - **Multi-user support** — attribute records to household members (HA People), filter the view by person
@@ -53,12 +53,13 @@ During setup and via **Settings → Devices & Services → Vinyl Collection → 
 ### Adding a record
 
 1. Click **+ Add Record**
-2. Optionally search Discogs to auto-fill fields — select a result to populate artist, album, year, label, catalog number, and cover art
-3. Fill in or adjust artist, album, year, genre, and rating
-4. Toggle **Wish List** if this is a record you want but don't yet own
-5. If multiple HA People are configured, tap profile pictures under **Owner** to attribute the record
-6. If Spotify is enabled, click **Search Spotify** to link the record — this enables the play button in the table
-7. Click **Add to Collection**
+2. Optionally search Discogs to auto-fill fields — each result has a **Tracks** button that fetches the full tracklist so you can confirm you have the right album or pressing before selecting it
+3. Select a result to populate artist, album, year, label, catalog number, and cover art
+4. Fill in or adjust artist, album, year, genre, and rating
+5. Toggle **Wish List** if this is a record you want but don't yet own
+6. If multiple HA People are configured, tap profile pictures under **Owner** to attribute the record
+7. If Spotify is enabled, click **Search Spotify** to link the record — this enables the play button in the table
+8. Click **Add to Collection**
 
 ### Wish List
 

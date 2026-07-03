@@ -85,7 +85,6 @@ class VinylCollectionStore:
                     "label",
                     "genre",
                     "catalog_number",
-                    "notes",
                 )
             ).lower()
             if q in haystack:

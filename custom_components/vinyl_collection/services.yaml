@@ -28,6 +28,16 @@ add_record:
       required: false
       selector:
         text:
+    label:
+      name: Label
+      required: false
+      selector:
+        text:
+    catalog_number:
+      name: Catalog Number
+      required: false
+      selector:
+        text:
     rating:
       name: Rating
       required: false
@@ -36,6 +46,12 @@ add_record:
           min: 1
           max: 5
           mode: box
+    owned_by:
+      name: Owned By
+      required: false
+      description: List of HA Person entity IDs who own this record.
+      selector:
+        object:
     discogs_id:
       name: Discogs ID
       required: false
@@ -99,6 +115,16 @@ update_record:
       required: false
       selector:
         text:
+    label:
+      name: Label
+      required: false
+      selector:
+        text:
+    catalog_number:
+      name: Catalog Number
+      required: false
+      selector:
+        text:
     rating:
       name: Rating
       required: false
@@ -117,6 +143,12 @@ update_record:
       required: false
       selector:
         boolean:
+    owned_by:
+      name: Owned By
+      required: false
+      description: List of HA Person entity IDs who own this record.
+      selector:
+        object:
 
 search:
   name: Search Collection

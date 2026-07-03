@@ -331,8 +331,13 @@ class VinylCollectionCard extends HTMLElement {
       container.innerHTML =
         "<div class=\"track-view\">" +
         "<div class=\"track-view-header\">" +
-        "<button class=\"track-back-btn\" id=\"track-back\"><ha-icon icon=\"mdi:arrow-left\" style=\"width:16px;height:16px;\"></ha-icon> Back</button>" +
-        "<span class=\"track-album-title\">" + this._esc(r.artist) + " — " + this._esc(r.album) + "</span>" +
+        "<button class=\"track-back-btn\" id=\"track-back\"><ha-icon icon=\"mdi:arrow-left\"></ha-icon>Back to results</button>" +
+        "<div class=\"track-header-info\">" +
+        this._coverHTML(r.cover_url, 44) +
+        "<div class=\"track-header-text\">" +
+        "<div class=\"track-header-artist\">" + this._esc(r.artist) + "</div>" +
+        "<div class=\"track-header-album\">" + this._esc(r.album) + "</div>" +
+        "</div></div>" +
         "</div>" +
         "<div class=\"track-list\">" +
         (this._tracks.length === 0
@@ -531,17 +536,23 @@ class VinylCollectionCard extends HTMLElement {
       ".discogs-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }" +
       ".discogs-meta { font-size: 11px; color: var(--secondary-text-color); margin-top: 2px; }" +
       ".discogs-divider { border: none; border-top: 1px solid var(--divider-color, #ccc); margin: 4px 0 0 0; }" +
-      ".track-view { display: flex; flex-direction: column; }" +
-      ".track-view-header { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--divider-color, #ccc); margin-bottom: 4px; }" +
-      ".track-back-btn { background: none; border: none; cursor: pointer; color: var(--primary-color); font-size: 13px; font-family: inherit; padding: 0; display: flex; align-items: center; gap: 4px; }" +
-      ".track-album-title { font-size: 13px; font-weight: 500; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }" +
+      ".track-view { display: flex; flex-direction: column; gap: 8px; }" +
+      ".track-view-header { display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; border-bottom: 1px solid var(--divider-color, #ccc); }" +
+      ".track-back-btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: none; cursor: pointer; color: var(--primary-color); font-size: 13px; font-family: inherit; padding: 4px 0; width: fit-content; }" +
+      ".track-back-btn ha-icon { --mdc-icon-size: 18px; width: 18px; height: 18px; }" +
+      ".track-back-btn:hover { opacity: 0.7; }" +
+      ".track-header-info { display: flex; align-items: center; gap: 10px; }" +
+      ".track-header-text { flex: 1; min-width: 0; }" +
+      ".track-header-artist { font-size: 11px; color: var(--secondary-text-color); }" +
+      ".track-header-album { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }" +
       ".track-list { max-height: 200px; overflow-y: auto; }" +
-      ".track-row { display: flex; align-items: center; gap: 8px; padding: 5px 4px; border-bottom: 1px solid var(--divider-color, #eee); font-size: 13px; }" +
+      ".track-row { display: flex; align-items: center; gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--divider-color, #eee); font-size: 13px; }" +
       ".track-row:last-child { border-bottom: none; }" +
-      ".track-position { color: var(--secondary-text-color); font-size: 11px; min-width: 28px; }" +
+      ".track-row:hover { background: var(--secondary-background-color); }" +
+      ".track-position { color: var(--secondary-text-color); font-size: 11px; min-width: 32px; text-align: right; }" +
       ".track-title { flex: 1; }" +
-      ".track-duration { color: var(--secondary-text-color); font-size: 11px; }" +
-      ".tracks-btn { font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--divider-color, #ccc); background: none; color: var(--secondary-text-color); cursor: pointer; font-family: inherit; white-space: nowrap; }" +
+      ".track-duration { color: var(--secondary-text-color); font-size: 12px; }" +
+      ".tracks-btn { font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--divider-color, #ccc); background: none; color: var(--secondary-text-color); cursor: pointer; font-family: inherit; white-space: nowrap; flex-shrink: 0; }" +
       ".tracks-btn:hover { color: var(--primary-text-color); border-color: var(--primary-text-color); }" +
       ".cover-preview { display: none; }" +
       ".cover-and-fields { display: flex; gap: 14px; align-items: flex-start; }" +

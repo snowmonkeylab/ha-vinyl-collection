@@ -38,6 +38,7 @@ from .const import (
     EVENT_RECORD_UPDATED,
     SERVICE_ADD_RECORD,
     SERVICE_GET_CONFIG,
+    SERVICE_GET_DISCOGS_TRACKS,
     SERVICE_LOOKUP_DISCOGS,
     SERVICE_REMOVE_RECORD,
     SERVICE_SEARCH,
@@ -53,6 +54,12 @@ CARD_PATH = Path(__file__).parent / "vinyl-collection-card.js"
 
 DISCOGS_SEARCH_URL = "https://api.discogs.com/database/search"
 DISCOGS_USER_AGENT = "ha-vinyl-collection/1.0 +https://github.com/snowmonkeylab/ha-vinyl-collection"
+DISCOGS_RELEASE_URL = "https://api.discogs.com/releases/{}"
+DISCOGS_MASTER_URL = "https://api.discogs.com/masters/{}"
+GET_DISCOGS_TRACKS_SCHEMA = vol.Schema({
+    vol.Required(ATTR_DISCOGS_ID): cv.string,
+    vol.Optional("resource_type", default="master"): cv.string,
+})
 
 ADD_RECORD_SCHEMA = vol.Schema(
     {
@@ -172,6 +179,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 SERVICE_UPDATE_RECORD,
                 SERVICE_SEARCH,
                 SERVICE_LOOKUP_DISCOGS,
+                SERVICE_GET_DISCOGS_TRACKS,
                 SERVICE_GET_CONFIG,
             ):
                 hass.services.async_remove(DOMAIN, service)
@@ -337,6 +345,7 @@ def _register_services(
 
             results.append({
                 "discogs_id": str(item.get("id", "")),
+                "resource_type": item.get("type", "release"),
                 "artist": artist,
                 "album": album,
                 "year": year,
@@ -374,6 +383,37 @@ def _register_services(
     hass.services.async_register(
         DOMAIN, SERVICE_LOOKUP_DISCOGS, handle_lookup_discogs,
         schema=LOOKUP_DISCOGS_SCHEMA, supports_response=SupportsResponse.ONLY,
+    )
+
+    async def handle_get_discogs_tracks(call: ServiceCall) -> ServiceResponse:
+        """Fetch tracklist for a Discogs release or master."""
+        if not _is_discogs_enabled(entry):
+            raise HomeAssistantError("Discogs integration is disabled")
+        discogs_id = call.data[ATTR_DISCOGS_ID]
+        resource_type = call.data.get("resource_type", "release")
+        token = _get_discogs_token(entry)
+        headers = {"User-Agent": DISCOGS_USER_AGENT}
+        if token:
+            headers["Authorization"] = f"Discogs token={token}"
+        url = (DISCOGS_MASTER_URL if resource_type == "master" else DISCOGS_RELEASE_URL).format(discogs_id)
+        session = async_get_clientsession(hass)
+        try:
+            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status != 200:
+                    raise HomeAssistantError(f"Discogs API returned status {resp.status}")
+                data = await resp.json()
+        except aiohttp.ClientError as err:
+            raise HomeAssistantError(f"Failed to reach Discogs API: {err}") from err
+        tracks = [
+            {"position": t.get("position", ""), "title": t.get("title", ""), "duration": t.get("duration", "")}
+            for t in data.get("tracklist", [])
+            if t.get("type_", "track") == "track"
+        ]
+        return {"tracks": tracks, "count": len(tracks)}
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_GET_DISCOGS_TRACKS, handle_get_discogs_tracks,
+        schema=GET_DISCOGS_TRACKS_SCHEMA, supports_response=SupportsResponse.ONLY,
     )
 
 

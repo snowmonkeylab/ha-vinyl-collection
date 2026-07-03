@@ -30,6 +30,9 @@ class VinylCollectionCard extends HTMLElement {
     this._saving = false;
     this._discogsResults = [];
     this._discogsSearching = false;
+    this._trackView = null;
+    this._trackLoading = false;
+    this._tracks = [];
     this._hasDiscogsToken = null;
     this._discogsEnabled = null;
     this._selectedCoverUrl = null;
@@ -205,6 +208,8 @@ class VinylCollectionCard extends HTMLElement {
     this.shadowRoot.querySelector("#dialog-overlay").classList.remove("open");
     this.shadowRoot.querySelector("#artist-suggestions").style.display = "none";
     clearTimeout(this._discogsSearchTimeout);
+    this._trackView = null;
+    this._tracks = [];
   }
 
   _setSort(col) {
@@ -315,6 +320,45 @@ class VinylCollectionCard extends HTMLElement {
       return;
     }
 
+    // Track view — swap results for tracklist
+    if (this._trackView !== null) {
+      const r = this._trackView;
+      container.style.display = "block";
+      if (this._trackLoading) {
+        container.innerHTML = "<div style=\"display:flex;align-items:center;gap:8px;padding:12px;color:var(--secondary-text-color);font-size:13px;\"><div class=\"spinner\" style=\"width:16px;height:16px;border-width:2px;\"></div>Loading tracks...</div>";
+        return;
+      }
+      container.innerHTML =
+        "<div class=\"track-view\">" +
+        "<div class=\"track-view-header\">" +
+        "<button class=\"track-back-btn\" id=\"track-back\"><ha-icon icon=\"mdi:arrow-left\"></ha-icon>Back to results</button>" +
+        "<div class=\"track-header-info\">" +
+        this._coverHTML(r.cover_url, 44) +
+        "<div class=\"track-header-text\">" +
+        "<div class=\"track-header-artist\">" + this._esc(r.artist) + "</div>" +
+        "<div class=\"track-header-album\">" + this._esc(r.album) + "</div>" +
+        "</div></div>" +
+        "</div>" +
+        "<div class=\"track-list\">" +
+        (this._tracks.length === 0
+          ? "<div style=\"padding:12px;color:var(--secondary-text-color);font-size:13px;\">No tracks found.</div>"
+          : this._tracks.map(t =>
+              "<div class=\"track-row\">" +
+              "<span class=\"track-position\">" + this._esc(t.position) + "</span>" +
+              "<span class=\"track-title\">" + this._esc(t.title) + "</span>" +
+              (t.duration ? "<span class=\"track-duration\">" + this._esc(t.duration) + "</span>" : "") +
+              "</div>"
+            ).join("")
+        ) +
+        "</div></div>";
+      container.querySelector("#track-back").addEventListener("click", () => {
+        this._trackView = null;
+        this._tracks = [];
+        this._renderDiscogsResults();
+      });
+      return;
+    }
+
     container.innerHTML = this._discogsResults.map((r, i) =>
       "<div class=\"discogs-result\" data-index=\"" + i + "\">" +
       "<div class=\"discogs-thumb\">" + this._coverHTML(r.cover_url, 48) + "</div>" +
@@ -327,15 +371,39 @@ class VinylCollectionCard extends HTMLElement {
       (r.country ? "&bull; " + this._esc(r.country) : "") +
       "</div>" +
       "</div>" +
+      "<button class=\"tracks-btn\" data-index=\"" + i + "\">Tracks</button>" +
       "</div>"
     ).join("");
 
     container.style.display = "block";
 
     container.querySelectorAll(".discogs-result").forEach(el => {
-      el.addEventListener("click", () => {
+      el.addEventListener("click", e => {
+        if (e.target.closest(".tracks-btn")) return;
         const result = this._discogsResults[parseInt(el.dataset.index)];
         this._applyDiscogsResult(result);
+      });
+    });
+
+    container.querySelectorAll(".tracks-btn").forEach(btn => {
+      btn.addEventListener("click", async e => {
+        e.stopPropagation();
+        const result = this._discogsResults[parseInt(btn.dataset.index)];
+        this._trackView = result;
+        this._trackLoading = true;
+        this._tracks = [];
+        this._renderDiscogsResults();
+        try {
+          const resp = await this._call("get_discogs_tracks", {
+            discogs_id: result.discogs_id,
+            resource_type: result.resource_type || "release",
+          });
+          this._tracks = resp.response.tracks || [];
+        } catch (_) {
+          this._tracks = [];
+        }
+        this._trackLoading = false;
+        this._renderDiscogsResults();
       });
     });
   }
@@ -468,6 +536,24 @@ class VinylCollectionCard extends HTMLElement {
       ".discogs-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }" +
       ".discogs-meta { font-size: 11px; color: var(--secondary-text-color); margin-top: 2px; }" +
       ".discogs-divider { border: none; border-top: 1px solid var(--divider-color, #ccc); margin: 4px 0 0 0; }" +
+      ".track-view { display: flex; flex-direction: column; gap: 8px; }" +
+      ".track-view-header { display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; border-bottom: 1px solid var(--divider-color, #ccc); }" +
+      ".track-back-btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: none; cursor: pointer; color: var(--primary-color); font-size: 13px; font-family: inherit; padding: 4px 0; width: fit-content; }" +
+      ".track-back-btn ha-icon { --mdc-icon-size: 18px; width: 18px; height: 18px; }" +
+      ".track-back-btn:hover { opacity: 0.7; }" +
+      ".track-header-info { display: flex; align-items: center; gap: 10px; }" +
+      ".track-header-text { flex: 1; min-width: 0; }" +
+      ".track-header-artist { font-size: 11px; color: var(--secondary-text-color); }" +
+      ".track-header-album { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }" +
+      ".track-list { max-height: 200px; overflow-y: auto; }" +
+      ".track-row { display: flex; align-items: center; gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--divider-color, #eee); font-size: 13px; }" +
+      ".track-row:last-child { border-bottom: none; }" +
+      ".track-row:hover { background: var(--secondary-background-color); }" +
+      ".track-position { color: var(--secondary-text-color); font-size: 11px; min-width: 32px; text-align: right; }" +
+      ".track-title { flex: 1; }" +
+      ".track-duration { color: var(--secondary-text-color); font-size: 12px; }" +
+      ".tracks-btn { font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--divider-color, #ccc); background: none; color: var(--secondary-text-color); cursor: pointer; font-family: inherit; white-space: nowrap; flex-shrink: 0; }" +
+      ".tracks-btn:hover { color: var(--primary-text-color); border-color: var(--primary-text-color); }" +
       ".cover-preview { display: none; }" +
       ".cover-and-fields { display: flex; gap: 14px; align-items: flex-start; }" +
       ".cover-and-fields .fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }" +
@@ -517,9 +603,12 @@ class VinylCollectionCard extends HTMLElement {
       ".play-picker-dialog { background: var(--card-background-color, #fff); color: var(--primary-text-color); border-radius: 12px; width: 90%; max-width: 360px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); max-height: 80vh; overflow-y: auto; }" +
       ".play-picker-dialog h3 { font-size: 16px; font-weight: 500; }" +
       ".entity-list { display: flex; flex-direction: column; gap: 2px; }" +
-      ".entity-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; border-radius: 6px; font-size: 14px; }" +
+      ".entity-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer; border-radius: 8px; transition: background 0.1s; }" +
       ".entity-item:hover { background: var(--secondary-background-color); }" +
-      ".entity-item.last-used { font-weight: 500; }" +
+      ".entity-item.last-used .entity-name { font-weight: 600; }" +
+      ".entity-icon-wrap { width: 36px; height: 36px; border-radius: 50%; background: var(--secondary-background-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }" +
+      ".entity-name { font-size: 14px; line-height: 1.3; }" +
+      ".entity-area { font-size: 11px; color: var(--secondary-text-color); margin-top: 1px; }" +
       "</style>" +
       "<ha-card>" +
       "<div class=\"tab-bar\">" +
@@ -1052,6 +1141,16 @@ class VinylCollectionCard extends HTMLElement {
     return !!(state && (state.attributes.app_id === "music_assistant" || state.attributes.mass_player_type !== undefined));
   }
 
+  _getEntityArea(entityId) {
+    try {
+      const areaId = this._hass.entities[entityId]?.area_id;
+      if (areaId && this._hass.areas && this._hass.areas[areaId]) {
+        return this._hass.areas[areaId].name;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   _getMassPlayers() {
     return this._getMediaPlayers().filter(p => this._isMassEntity(p.entity_id));
   }
@@ -1189,14 +1288,15 @@ class VinylCollectionCard extends HTMLElement {
     if (!players.length) {
       list.innerHTML = "<div style=\"padding:12px;color:var(--secondary-text-color);font-size:13px;\">No Music Assistant players found. Install the Music Assistant integration to enable speaker playback.</div>";
     } else {
-      list.innerHTML = players.map(p =>
-        "<div class=\"entity-item" + (p.entity_id === lastUsed ? " last-used" : "") + "\" data-entity=\"" + this._esc(p.entity_id) + "\">" +
-        "<ha-icon icon=\"mdi:music-note\" style=\"width:20px;height:20px;flex-shrink:0;color:#1DB954;\"></ha-icon>" +
-        "<div style=\"flex:1;min-width:0;\">" +
-        "<div>" + this._esc(p.name) + "</div>" +
-        "<div style=\"font-size:11px;color:var(--secondary-text-color);\">Music Assistant</div>" +
-        "</div></div>"
-      ).join("");
+      list.innerHTML = players.map(p => {
+        const area = this._getEntityArea(p.entity_id);
+        return "<div class=\"entity-item" + (p.entity_id === lastUsed ? " last-used" : "") + "\" data-entity=\"" + this._esc(p.entity_id) + "\">" +
+          "<div class=\"entity-icon-wrap\"><ha-icon icon=\"mdi:speaker-wireless\" style=\"width:20px;height:20px;\"></ha-icon></div>" +
+          "<div style=\"flex:1;min-width:0;\">" +
+          "<div class=\"entity-name\">" + this._esc(p.name) + "</div>" +
+          (area ? "<div class=\"entity-area\">" + this._esc(area) + "</div>" : "") +
+          "</div></div>";
+      }).join("");
       list.querySelectorAll(".entity-item").forEach(el => {
         el.addEventListener("click", () => {
           this._playRecord(el.dataset.entity, this._playPickerRecord);

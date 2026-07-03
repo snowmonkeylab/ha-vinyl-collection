@@ -140,6 +140,25 @@ lookup_discogs:
       selector:
         text:
 
+get_discogs_tracks:
+  name: Get Discogs Tracks
+  description: Fetch the tracklist for a Discogs release or master by ID.
+  fields:
+    discogs_id:
+      name: Discogs ID
+      required: true
+      selector:
+        text:
+    resource_type:
+      name: Resource Type
+      required: false
+      description: "master or release (default: release)"
+      selector:
+        select:
+          options:
+            - "master"
+            - "release"
+
 get_config:
   name: Get Config
   description: Returns integration configuration state, including whether Discogs is enabled and a token is set. No outbound calls made.

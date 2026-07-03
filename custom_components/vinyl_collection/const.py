@@ -16,6 +16,7 @@ SERVICE_REMOVE_RECORD = "remove_record"
 SERVICE_UPDATE_RECORD = "update_record"
 SERVICE_SEARCH = "search"
 SERVICE_LOOKUP_DISCOGS = "lookup_discogs"
+SERVICE_GET_DISCOGS_TRACKS = "get_discogs_tracks"
 SERVICE_GET_CONFIG = "get_config"
 
 # Record fields

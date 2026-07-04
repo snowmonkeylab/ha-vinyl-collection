@@ -1142,10 +1142,21 @@ class VinylCollectionCard extends HTMLElement {
 
   _getEntityArea(entityId) {
     try {
-      const areaId = this._hass.entities[entityId]?.area_id;
-      if (areaId && this._hass.areas && this._hass.areas[areaId]) {
-        return this._hass.areas[areaId].name;
+      const entities = this._hass.entities;
+      const areas = this._hass.areas;
+      if (!entities || !areas) return null;
+
+      const entity = entities[entityId];
+      if (!entity) return null;
+
+      // Check entity-level area first, then device-level area
+      let areaId = entity.area_id;
+      if (!areaId && entity.device_id && this._hass.devices) {
+        const device = this._hass.devices[entity.device_id];
+        if (device) areaId = device.area_id;
       }
+
+      if (areaId && areas[areaId]) return areas[areaId].name;
     } catch (_) {}
     return null;
   }

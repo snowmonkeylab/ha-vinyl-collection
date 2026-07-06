@@ -750,7 +750,7 @@ class VinylCollectionCard extends HTMLElement {
       if (table) table.style.display = isCompact ? "none" : "";
       if (mobileList) mobileList.style.display = isCompact ? "flex" : "none";
       if (tableWrap) {
-        tableWrap.style.height = isCompact ? "500px" : "";
+        tableWrap.style.height = isCompact ? "calc(100dvh - 130px)" : "";
         tableWrap.style.overflowY = isCompact ? "auto" : "";
       }
     }).observe(this);

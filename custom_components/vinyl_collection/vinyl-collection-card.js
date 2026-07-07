@@ -1094,7 +1094,12 @@ class VinylCollectionCard extends HTMLElement {
           fixedMenu.innerHTML =
             (rec.spotify_uri ? "<div class=\"overflow-item\" data-action=\"play\"><ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;width:18px;height:18px;\"></ha-icon>Play</div>" : "") +
             "<div class=\"overflow-item danger\" data-action=\"delete\"><ha-icon icon=\"mdi:delete\" style=\"width:18px;height:18px;\"></ha-icon>Delete</div>";
-          fixedMenu.style.top = (rect.bottom + 4) + "px";
+          const menuHeight = 120;
+          const spaceBelow = window.innerHeight - rect.bottom;
+          const top = spaceBelow < menuHeight + 8
+            ? (rect.top - menuHeight - 4)
+            : (rect.bottom + 4);
+          fixedMenu.style.top = top + "px";
           fixedMenu.style.left = Math.min(rect.right - 130, window.innerWidth - 140) + "px";
           fixedMenu.classList.toggle("open");
           fixedMenu.querySelectorAll(".overflow-item").forEach(item => {
@@ -1110,6 +1115,7 @@ class VinylCollectionCard extends HTMLElement {
       });
 
       document.addEventListener("click", () => fixedMenu.classList.remove("open"));
+      root.querySelector(".table-wrap").addEventListener("scroll", () => fixedMenu.classList.remove("open"));
     }
   }
 

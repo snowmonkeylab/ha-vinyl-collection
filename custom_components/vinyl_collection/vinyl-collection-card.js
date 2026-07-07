@@ -750,8 +750,15 @@ class VinylCollectionCard extends HTMLElement {
       if (table) table.style.display = isCompact ? "none" : "";
       if (mobileList) mobileList.style.display = isCompact ? "flex" : "none";
       if (tableWrap) {
-        tableWrap.style.height = isCompact ? "calc(100dvh - 130px)" : "";
-        tableWrap.style.overflowY = isCompact ? "auto" : "";
+        if (isCompact) {
+          const cardTop = tableWrap.getBoundingClientRect().top;
+          const availableHeight = window.innerHeight - cardTop - 24;
+          tableWrap.style.height = availableHeight > 200 ? availableHeight + "px" : "400px";
+          tableWrap.style.overflowY = "auto";
+        } else {
+          tableWrap.style.height = "";
+          tableWrap.style.overflowY = "";
+        }
       }
     }).observe(this);
 

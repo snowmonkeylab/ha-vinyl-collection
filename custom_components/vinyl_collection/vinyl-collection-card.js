@@ -462,13 +462,11 @@ class VinylCollectionCard extends HTMLElement {
       ".tab { padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--secondary-text-color); border-bottom: 2px solid transparent; margin-bottom: -2px; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; }" +
       ".tab.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }" +
       ".tab:hover { color: var(--primary-text-color); }" +
-      ".wishlist-toggle { display: flex; align-items: center; gap: 10px; padding: 2px 0; }" +
-      ".toggle-switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }" +
-      ".toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }" +
-      ".toggle-slider { position: absolute; cursor: pointer; inset: 0; background: var(--divider-color, #ccc); border-radius: 24px; transition: 0.25s; }" +
-      ".toggle-slider:before { content: ''; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.25s; }" +
-      ".toggle-switch input:checked + .toggle-slider { background: var(--primary-color); }" +
-      ".toggle-switch input:checked + .toggle-slider:before { transform: translateX(18px); }" +
+      ".toggle-row { display: flex; gap: 8px; padding: 2px 0; }" +
+      ".toggle-chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 16px; border: 1px solid var(--divider-color, #ccc); background: none; color: var(--secondary-text-color); font-size: 13px; font-family: inherit; cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }" +
+      ".toggle-chip ha-icon { --mdc-icon-size: 18px; width: 18px; height: 18px; }" +
+      ".toggle-chip:hover { background: var(--secondary-background-color); }" +
+      ".toggle-chip.active { border-color: var(--primary-color); color: var(--primary-color); background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.12); }" +
       ".section-divider { border: none; border-top: 1px solid var(--divider-color, #ccc); margin: 4px 0; }" +
       ".user-filter { display: none; gap: 6px; align-items: center; flex-shrink: 0; }" +
       ".person-chip { border-radius: 50%; border: 2px solid transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: var(--secondary-background-color); color: var(--secondary-text-color); user-select: none; overflow: hidden; flex-shrink: 0; transition: filter 0.2s, border-color 0.2s; filter: grayscale(1) opacity(0.45); }" +
@@ -672,13 +670,12 @@ class VinylCollectionCard extends HTMLElement {
       "<span class=\"star\" data-v=\"5\">&#9733;</span>" +
       "</div></div>" +
       "<div id=\"owner-section\" style=\"display:none;\"><label>Owner</label><div class=\"owner-chips\" id=\"owner-chips\"></div></div>" +
-      "<div><label>Wish List</label>" +
-      "<div class=\"wishlist-toggle\">" +
-      "<label class=\"toggle-switch\">" +
-      "<input type=\"checkbox\" id=\"f-is-wishlist\"/>" +
-      "<span class=\"toggle-slider\"></span>" +
-      "</label>" +
-      "</div></div>" +
+      "<div class=\"toggle-row\">" +
+      "<button type=\"button\" class=\"toggle-chip\" id=\"toggle-wishlist\" data-icon-on=\"mdi:heart\" data-icon-off=\"mdi:heart-outline\" title=\"Wish List\">" +
+      "<ha-icon icon=\"mdi:heart-outline\"></ha-icon><span>Wish List</span></button>" +
+      "<button type=\"button\" class=\"toggle-chip\" id=\"toggle-next-buy\" data-icon-on=\"mdi:cart\" data-icon-off=\"mdi:cart-outline\" title=\"Next Buy\" style=\"display:none;\">" +
+      "<ha-icon icon=\"mdi:cart-outline\"></ha-icon><span>Next Buy</span></button>" +
+      "</div>" +
       "</div>" +
       "</div>" +
       "<input type=\"hidden\" id=\"f-label\"/>" +
@@ -787,6 +784,16 @@ class VinylCollectionCard extends HTMLElement {
       }, 150);
     });
 
+    root.querySelector("#toggle-wishlist").addEventListener("click", () => {
+      const btn = root.querySelector("#toggle-wishlist");
+      this._setChipActive(btn, !btn.classList.contains("active"));
+      this._updateNextBuyVisibility();
+    });
+    root.querySelector("#toggle-next-buy").addEventListener("click", () => {
+      const btn = root.querySelector("#toggle-next-buy");
+      this._setChipActive(btn, !btn.classList.contains("active"));
+    });
+
     root.querySelector("#f-genre-select").addEventListener("change", e => {
       const custom = root.querySelector("#f-genre-custom");
       if (e.target.value === "__custom__") {
@@ -875,7 +882,9 @@ class VinylCollectionCard extends HTMLElement {
       }
     }
 
-    root.querySelector("#f-is-wishlist").checked = !!r.is_wishlist;
+    this._setChipActive(root.querySelector("#toggle-wishlist"), !!r.is_wishlist);
+    this._setChipActive(root.querySelector("#toggle-next-buy"), !!r.is_next_buy);
+    this._updateNextBuyVisibility();
     root.querySelector("#f-artist").value = r.artist || "";
     root.querySelector("#f-album").value = r.album || "";
     root.querySelector("#f-year").value = r.year || "";
@@ -927,6 +936,20 @@ class VinylCollectionCard extends HTMLElement {
     this._updateStars();
   }
 
+  _setChipActive(btn, active) {
+    btn.classList.toggle("active", active);
+    const icon = btn.querySelector("ha-icon");
+    if (icon) icon.setAttribute("icon", active ? btn.dataset.iconOn : btn.dataset.iconOff);
+  }
+
+  _updateNextBuyVisibility() {
+    const root = this.shadowRoot;
+    const nextBuyBtn = root.querySelector("#toggle-next-buy");
+    const isWishlist = root.querySelector("#toggle-wishlist").classList.contains("active");
+    nextBuyBtn.style.display = isWishlist ? "inline-flex" : "none";
+    if (!isWishlist) this._setChipActive(nextBuyBtn, false);
+  }
+
   _updateStars() {
     this.shadowRoot.querySelectorAll("#star-pick .star").forEach(s => {
       s.classList.toggle("on", parseInt(s.dataset.v) <= this._modalRating);
@@ -948,7 +971,8 @@ class VinylCollectionCard extends HTMLElement {
     const data = { artist, album };
     const r = this._modalRecord || {};
     if (r.record_id) data.record_id = r.record_id;
-    data.is_wishlist = !!root.querySelector("#f-is-wishlist").checked;
+    data.is_wishlist = root.querySelector("#toggle-wishlist").classList.contains("active");
+    data.is_next_buy = data.is_wishlist && root.querySelector("#toggle-next-buy").classList.contains("active");
     if (this._isMultiUser()) {
       data.owned_by = Array.from(root.querySelectorAll("#owner-chips .person-chip.selected"))
         .map(chip => chip.dataset.personId);
@@ -1032,6 +1056,7 @@ class VinylCollectionCard extends HTMLElement {
       "<td>" + this._starsHTML(r.rating || 0) + "</td>" +
       "<td>" + this._esc(r.genre || "") + "</td>" +
       "<td class=\"actions\">" +
+      (r.is_next_buy ? "<span class=\"icon-btn cart-indicator\" title=\"Next Buy\" style=\"cursor:default;\"><ha-icon icon=\"mdi:cart\"></ha-icon></span>" : "") +
       (r.spotify_uri ? "<button class=\"icon-btn play-btn\" data-id=\"" + r.record_id + "\" data-action=\"play\" title=\"Play on Spotify\"><ha-icon icon=\"mdi:spotify\"></ha-icon></button>" : "") +
       "<button class=\"icon-btn\" data-id=\"" + r.record_id + "\" data-action=\"delete\" title=\"Delete\"><ha-icon icon=\"mdi:delete\"></ha-icon></button>" +
       "</td></tr>"
@@ -1040,13 +1065,13 @@ class VinylCollectionCard extends HTMLElement {
     tbody.querySelectorAll("tr").forEach(tr => {
       tr.addEventListener("click", e => {
         if (e.target.closest(".icon-btn")) return;
-        const id = tr.querySelector(".icon-btn").dataset.id;
+        const id = tr.querySelector(".icon-btn:not(.cart-indicator)").dataset.id;
         const rec = this._records.find(r => r.record_id === id);
         if (rec) this._openDialog(rec);
       });
     });
 
-    tbody.querySelectorAll(".icon-btn").forEach(btn => {
+    tbody.querySelectorAll(".icon-btn:not(.cart-indicator)").forEach(btn => {
       btn.addEventListener("click", e => {
         e.stopPropagation();
         const id = btn.dataset.id;
@@ -1069,6 +1094,7 @@ class VinylCollectionCard extends HTMLElement {
           (meta ? "<div class=\"mobile-card-meta\">" + this._esc(meta) + "</div>" : "") +
           "</div></div>" +
           "<div class=\"overflow-wrap\">" +
+          (r.is_next_buy ? "<ha-icon icon=\"mdi:cart\" title=\"Next Buy\" style=\"width:20px;height:20px;margin-right:6px;color:var(--secondary-text-color);opacity:0.6;flex-shrink:0;\"></ha-icon>" : "") +
           "<button class=\"overflow-btn\" data-id=\"" + r.record_id + "\"><ha-icon icon=\"mdi:dots-vertical\" style=\"width:20px;height:20px;\"></ha-icon></button>" +
           "</div></div>";
       }).join("");

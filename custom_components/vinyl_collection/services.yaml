@@ -72,6 +72,11 @@ add_record:
       required: false
       selector:
         boolean:
+    is_next_buy:
+      name: Next Buy
+      required: false
+      selector:
+        boolean:
 
 remove_record:
   name: Remove Record
@@ -140,6 +145,11 @@ update_record:
         text:
     is_wishlist:
       name: Wish List
+      required: false
+      selector:
+        boolean:
+    is_next_buy:
+      name: Next Buy
       required: false
       selector:
         boolean:

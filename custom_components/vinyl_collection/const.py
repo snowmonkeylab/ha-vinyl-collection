@@ -32,6 +32,7 @@ ATTR_DISCOGS_ID = "discogs_id"
 ATTR_COVER_URL = "cover_url"
 ATTR_SPOTIFY_URI = "spotify_uri"
 ATTR_IS_WISHLIST = "is_wishlist"
+ATTR_IS_NEXT_BUY = "is_next_buy"
 ATTR_OWNED_BY = "owned_by"
 ATTR_QUERY = "query"
 

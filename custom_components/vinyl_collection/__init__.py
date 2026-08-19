@@ -33,6 +33,7 @@ from .const import (
     CONF_DISCOGS_ENABLED,
     CONF_DISCOGS_TOKEN,
     CONF_SPOTIFY_ENABLED,
+    DISCOGS_USER_AGENT,
     DOMAIN,
     EVENT_RECORD_ADDED,
     EVENT_RECORD_REMOVED,
@@ -54,7 +55,6 @@ CARD_URL = "/vinyl_collection_frontend/vinyl-collection-card.js"
 CARD_PATH = Path(__file__).parent / "vinyl-collection-card.js"
 
 DISCOGS_SEARCH_URL = "https://api.discogs.com/database/search"
-DISCOGS_USER_AGENT = "ha-vinyl-collection/1.0 +https://github.com/snowmonkeylab/ha-vinyl-collection"
 DISCOGS_RELEASE_URL = "https://api.discogs.com/releases/{}"
 DISCOGS_MASTER_URL = "https://api.discogs.com/masters/{}"
 GET_DISCOGS_TRACKS_SCHEMA = vol.Schema({

@@ -519,6 +519,9 @@ class VinylCollectionCard extends HTMLElement {
       ".overlay.open { display: flex; }" +
       ".dialog { background: var(--card-background-color, #fff); color: var(--primary-text-color); border-radius: 12px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }" +
       ".dialog h3 { font-size: 18px; font-weight: 500; }" +
+      ".dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }" +
+      ".dialog-header h3 { margin: 0; }" +
+      ".dialog-header .icon-btn { margin: -4px; }" +
       ".discogs-search-row { margin-bottom: 0; }" +
       ".discogs-search-row input { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--divider-color, #ccc); background: var(--input-fill-color, var(--secondary-background-color, #f5f5f5)); color: var(--primary-text-color); font-size: 14px; font-family: inherit; outline: none; }" +
       ".discogs-search-row input:focus { border-color: var(--primary-color); }" +
@@ -581,7 +584,9 @@ class VinylCollectionCard extends HTMLElement {
       ".spotify-section { display: flex; flex-direction: column; gap: 6px; }" +
       ".spotify-header { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--secondary-text-color); line-height: 1; }" +
       ".spotify-header ha-icon { display: flex; align-items: center; --mdc-icon-size: 16px; width: 16px; height: 16px; }" +
-      ".spotify-not-installed { font-size: 12px; color: var(--secondary-text-color); display: none; }" +
+      ".spotify-not-installed { display: none; flex-direction: column; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--secondary-text-color); }" +
+      ".mass-not-installed { display: none; flex-direction: column; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--secondary-text-color); }" +
+      ".btn-add { background: var(--primary-color); color: var(--text-primary-color, #fff); text-decoration: none; }" +
       ".spotify-disabled-notice { font-size: 13px; color: var(--secondary-text-color); background: var(--secondary-background-color, #f5f5f5); border-radius: 8px; padding: 10px 14px; line-height: 1.5; display: none; }" +
       ".spotify-search-row input { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--divider-color, #ccc); background: var(--input-fill-color, var(--secondary-background-color, #f5f5f5)); color: var(--primary-text-color); font-size: 14px; font-family: inherit; outline: none; }" +
       ".spotify-search-row input:focus { border-color: #1DB954; }" +
@@ -639,7 +644,7 @@ class VinylCollectionCard extends HTMLElement {
       "</ha-card>" +
       "<div class=\"overlay\" id=\"dialog-overlay\">" +
       "<div class=\"dialog\">" +
-      "<h3 id=\"dialog-title\">Add Record</h3>" +
+      "<div class=\"dialog-header\"><h3 id=\"dialog-title\">Add Record</h3><button type=\"button\" class=\"icon-btn\" id=\"dialog-close-x\" title=\"Close\"><ha-icon icon=\"mdi:close\"></ha-icon></button></div>" +
       "<div class=\"discogs-disabled-notice\" id=\"discogs-disabled-notice\">You can enable record search using the Discogs API. To do this, navigate to Settings → Devices &amp; Services → Vinyl Collection → Configure.</div>" +
       "<div id=\"discogs-section\">" +
       "<div class=\"discogs-search-row\">" +
@@ -684,11 +689,18 @@ class VinylCollectionCard extends HTMLElement {
       "<input type=\"hidden\" id=\"f-cover-url\"/>" +
       "<input type=\"hidden\" id=\"f-spotify-uri\"/>" +
       "<hr class=\"section-divider\"/>" +
-      "<p class=\"spotify-not-installed\" id=\"spotify-not-installed\">Activating the Spotify integration will enable linking and playback.</p>" +
+      "<div class=\"spotify-not-installed\" id=\"spotify-not-installed\">" +
+      "<p>The Spotify integration isn't set up in Home Assistant yet. Add it to enable search and linking.</p>" +
+      "<a class=\"btn btn-add\" href=\"/config/integrations/dashboard/add?domain=spotify\" target=\"_top\">Add Spotify integration</a>" +
+      "</div>" +
       "<div class=\"spotify-disabled-notice\" id=\"spotify-disabled-notice\">You can enable Spotify search and playback. To do this, navigate to Settings → Devices &amp; Services → Vinyl Collection → Configure.</div>" +
       "<div class=\"spotify-section\" id=\"spotify-section\">" +
       "<div class=\"spotify-header\"><ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;\"></ha-icon><span>Spotify</span></div>" +
       "<p class=\"spotify-help\">You can link this record to Spotify. This will enable you to play the album on a media player of your choice.</p>" +
+      "<div class=\"mass-not-installed\" id=\"mass-not-installed\">" +
+      "<p>Music Assistant isn't set up yet — playback on speakers needs it.</p>" +
+      "<a class=\"btn btn-add\" href=\"/config/integrations/dashboard/add?domain=music_assistant\" target=\"_top\">Add Music Assistant</a>" +
+      "</div>" +
       "<div class=\"spotify-saved\" id=\"spotify-saved\"></div>" +
       "<button class=\"btn btn-spotify\" id=\"spotify-search-btn\" style=\"align-self:flex-start;\">Search Spotify</button>" +
       "<div class=\"spotify-results\" id=\"spotify-results\"></div>" +
@@ -702,7 +714,7 @@ class VinylCollectionCard extends HTMLElement {
       "</div>" +
       "<div class=\"overlay\" id=\"delete-overlay\">" +
       "<div class=\"delete-dialog\">" +
-      "<h3>Remove Record</h3>" +
+      "<div class=\"dialog-header\"><h3>Remove Record</h3><button type=\"button\" class=\"icon-btn\" id=\"delete-close-x\" title=\"Close\"><ha-icon icon=\"mdi:close\"></ha-icon></button></div>" +
       "<p id=\"delete-msg\"></p>" +
       "<div class=\"dialog-actions\">" +
       "<button class=\"btn btn-cancel\" id=\"delete-cancel\">Cancel</button>" +
@@ -712,7 +724,7 @@ class VinylCollectionCard extends HTMLElement {
       "</div>" +
       "<div class=\"overlay\" id=\"play-picker-overlay\">" +
       "<div class=\"play-picker-dialog\">" +
-      "<h3>Play on...</h3>" +
+      "<div class=\"dialog-header\"><h3>Play on...</h3><button type=\"button\" class=\"icon-btn\" id=\"play-picker-close-x\" title=\"Close\"><ha-icon icon=\"mdi:close\"></ha-icon></button></div>" +
       "<div class=\"entity-list\" id=\"entity-list\"></div>" +
       "<div class=\"dialog-actions\">" +
       "<button class=\"btn btn-cancel\" id=\"play-picker-cancel\">Cancel</button>" +
@@ -816,6 +828,7 @@ class VinylCollectionCard extends HTMLElement {
 
     root.querySelector("#dialog-save").addEventListener("click", () => this._onSave());
     root.querySelector("#dialog-cancel").addEventListener("click", () => this._closeDialog());
+    root.querySelector("#dialog-close-x").addEventListener("click", () => this._closeDialog());
     root.querySelector("#dialog-overlay").addEventListener("click", e => {
       if (e.target === root.querySelector("#dialog-overlay")) this._closeDialog();
     });
@@ -824,6 +837,7 @@ class VinylCollectionCard extends HTMLElement {
       if (this._deleteId) this._deleteRecord(this._deleteId);
     });
     root.querySelector("#delete-cancel").addEventListener("click", () => this._closeDeleteDialog());
+    root.querySelector("#delete-close-x").addEventListener("click", () => this._closeDeleteDialog());
     root.querySelector("#delete-overlay").addEventListener("click", e => {
       if (e.target === root.querySelector("#delete-overlay")) this._closeDeleteDialog();
     });
@@ -831,6 +845,7 @@ class VinylCollectionCard extends HTMLElement {
     root.querySelector("#spotify-search-btn").addEventListener("click", () => this._doSpotifySearch());
 
     root.querySelector("#play-picker-cancel").addEventListener("click", () => this._closePlayPicker());
+    root.querySelector("#play-picker-close-x").addEventListener("click", () => this._closePlayPicker());
     root.querySelector("#play-picker-overlay").addEventListener("click", e => {
       if (e.target === root.querySelector("#play-picker-overlay")) this._closePlayPicker();
     });
@@ -912,10 +927,12 @@ class VinylCollectionCard extends HTMLElement {
     const spotifySection = root.querySelector("#spotify-section");
     const spotifyDisabledNotice = root.querySelector("#spotify-disabled-notice");
     const spotifyNotInstalled = root.querySelector("#spotify-not-installed");
+    const massNotInstalled = root.querySelector("#mass-not-installed");
     const spotifyInstalled = this._hasSpotifyIntegration();
-    if (spotifyNotInstalled) spotifyNotInstalled.style.display = !spotifyInstalled ? "block" : "none";
+    if (spotifyNotInstalled) spotifyNotInstalled.style.display = !spotifyInstalled ? "flex" : "none";
     if (spotifyDisabledNotice) spotifyDisabledNotice.style.display = (spotifyInstalled && !this._spotifyEnabled) ? "block" : "none";
     if (spotifySection) spotifySection.style.display = (spotifyInstalled && this._spotifyEnabled) ? "flex" : "none";
+    if (massNotInstalled) massNotInstalled.style.display = !this._hasMusicAssistant() ? "flex" : "none";
 
     this._spotifyResults = [];
     this._spotifyError = null;
@@ -1171,7 +1188,7 @@ class VinylCollectionCard extends HTMLElement {
   }
 
   _hasMusicAssistant() {
-    return !!(this._hass && this._hass.config && (this._hass.config.components || []).includes("mass"));
+    return !!(this._hass && this._hass.config && (this._hass.config.components || []).includes("music_assistant"));
   }
 
   _isMassEntity(entityId) {

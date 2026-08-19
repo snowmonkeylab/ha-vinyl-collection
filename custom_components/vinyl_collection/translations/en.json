@@ -1,21 +1,41 @@
 {
   "config": {
     "step": {
-      "user": {
-        "title": "Set up Vinyl Collection",
+      "name": {
+        "title": "Step 1 of 3 · Name your collection",
         "data": {
-          "name": "Name",
-          "discogs_token": "Discogs API Token (optional)",
+          "name": "Name"
+        },
+        "data_description": {
+          "name": "A name for your collection."
+        }
+      },
+      "discogs": {
+        "title": "Step 2 of 3 · Discogs integration",
+        "description": "{status}",
+        "data": {
           "discogs_enabled": "Enable Discogs integration",
+          "discogs_token": "Discogs API Token"
+        },
+        "data_description": {
+          "discogs_enabled": "Allow the card to search Discogs for records and fetch cover art.",
+          "discogs_token": "Generate a free personal token at discogs.com/settings/developers. It will be checked against the Discogs API before you continue."
+        }
+      },
+      "spotify": {
+        "title": "Step 3 of 3 · Spotify & playback",
+        "data": {
           "spotify_enabled": "Enable Spotify integration"
         },
         "data_description": {
-          "name": "A name for your collection.",
-          "discogs_token": "Generate a free personal token at discogs.com/settings/developers. Required when Discogs is enabled. You can add or update this later via Configure.",
-          "discogs_enabled": "Allow the card to search Discogs for records and fetch cover art.",
-          "spotify_enabled": "Allow the card to search Spotify and link records for playback. Requires the Music Assistant integration for speaker playback."
+          "spotify_enabled": "{spotify_status}\n\n{music_assistant_status}"
         }
       }
+    },
+    "error": {
+      "token_required": "Enter a Discogs token, or turn off Discogs integration.",
+      "invalid_auth": "This Discogs token was rejected. Check the token and try again.",
+      "cannot_connect": "Couldn't reach Discogs to verify the token. Check your connection and try again."
     },
     "abort": {
       "single_instance_allowed": "Vinyl Collection is already set up. Only one instance is supported."
@@ -23,19 +43,41 @@
   },
   "options": {
     "step": {
-      "init": {
-        "title": "Vinyl Collection Options",
+      "name": {
+        "title": "Step 1 of 3 · Name your collection",
         "data": {
-          "discogs_token": "Discogs API Token",
+          "name": "Name"
+        },
+        "data_description": {
+          "name": "A name for your collection."
+        }
+      },
+      "discogs": {
+        "title": "Step 2 of 3 · Discogs integration",
+        "description": "{status}",
+        "data": {
           "discogs_enabled": "Enable Discogs integration",
+          "discogs_token": "Discogs API Token"
+        },
+        "data_description": {
+          "discogs_enabled": "Allow the card to search Discogs for records and fetch cover art.",
+          "discogs_token": "Generate a free personal token at discogs.com/settings/developers. It will be checked against the Discogs API before you continue."
+        }
+      },
+      "spotify": {
+        "title": "Step 3 of 3 · Spotify & playback",
+        "data": {
           "spotify_enabled": "Enable Spotify integration"
         },
         "data_description": {
-          "discogs_token": "Required when Discogs is enabled. Generate a free personal token at discogs.com/settings/developers.",
-          "discogs_enabled": "Allow the card to search Discogs for records and fetch cover art.",
-          "spotify_enabled": "Allow the card to search Spotify and link records for playback. Requires the Music Assistant integration for speaker playback."
+          "spotify_enabled": "{spotify_status}\n\n{music_assistant_status}"
         }
       }
+    },
+    "error": {
+      "token_required": "Enter a Discogs token, or turn off Discogs integration.",
+      "invalid_auth": "This Discogs token was rejected. Check the token and try again.",
+      "cannot_connect": "Couldn't reach Discogs to verify the token. Check your connection and try again."
     }
   }
 }

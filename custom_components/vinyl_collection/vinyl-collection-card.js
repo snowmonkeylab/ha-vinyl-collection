@@ -243,8 +243,13 @@ class VinylCollectionCard extends HTMLElement {
   _coverHTML(url, size) {
     size = size || 40;
     if (url) {
-      return "<img src=\"" + this._esc(url) + "\" width=\"" + size + "\" height=\"" + size + "\" style=\"border-radius:4px;object-fit:cover;display:block;\" onerror=\"this.style.display='none';this.nextSibling.style.display='block';\"/>" +
-        "<ha-icon icon=\"mdi:album\" style=\"display:none;width:" + size + "px;height:" + size + "px;color:var(--secondary-text-color);\"></ha-icon>";
+      return "<span class=\"cover-wrap\" style=\"width:" + size + "px;height:" + size + "px;\">" +
+        "<span class=\"cover-skeleton\"></span>" +
+        "<img src=\"" + this._esc(url) + "\" width=\"" + size + "\" height=\"" + size + "\" style=\"border-radius:4px;object-fit:cover;display:block;position:relative;opacity:0;transition:opacity .15s ease;\" " +
+        "onload=\"this.style.opacity='1';this.previousElementSibling.style.display='none';\" " +
+        "onerror=\"this.style.display='none';this.previousElementSibling.style.display='none';this.nextElementSibling.style.display='block';\"/>" +
+        "<ha-icon icon=\"mdi:album\" style=\"display:none;width:" + size + "px;height:" + size + "px;color:var(--secondary-text-color);\"></ha-icon>" +
+        "</span>";
     }
     return "<ha-icon icon=\"mdi:album\" style=\"width:" + size + "px;height:" + size + "px;color:var(--secondary-text-color);\"></ha-icon>";
   }
@@ -505,6 +510,9 @@ class VinylCollectionCard extends HTMLElement {
       "tbody tr:hover { background: var(--secondary-background-color); }" +
       "td { padding: 6px 8px; vertical-align: middle; }" +
       "td.cover-cell { width: 48px; padding: 4px 8px; }" +
+      ".cover-wrap { position: relative; display: inline-block; vertical-align: middle; border-radius: 4px; overflow: hidden; }" +
+      ".cover-skeleton { position: absolute; inset: 0; background-color: var(--divider-color, #e0e0e0); background-image: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent); background-size: 200% 100%; animation: cover-shimmer 1.4s ease-in-out infinite; }" +
+      "@keyframes cover-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }" +
       "td.actions { white-space: nowrap; text-align: right; }" +
       ".icon-btn { background: none; border: none; cursor: pointer; padding: 4px; border-radius: 4px; opacity: 0.6; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; color: var(--secondary-text-color); }" +
       ".icon-btn:hover { opacity: 1; background: var(--secondary-background-color); color: var(--primary-text-color); }" +

@@ -107,7 +107,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Vinyl Collection from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
-    if not hass.data[DOMAIN].get("_frontend_registered"):
+    frontend_data = hass.data.setdefault(f"{DOMAIN}_frontend", {})
+    if not frontend_data.get("registered"):
         try:
             from homeassistant.components.http import StaticPathConfig
             await hass.http.async_register_static_paths(
@@ -116,7 +117,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except (ImportError, AttributeError):
             hass.http.register_static_path(CARD_URL, str(CARD_PATH), cache_headers=False)
 
-        hass.data[DOMAIN]["_frontend_registered"] = True
+        frontend_data["registered"] = True
 
     async def _async_register_lovelace_resource(_event=None) -> None:
         """Add the card to Lovelace resources via the in-memory collection."""
@@ -162,7 +163,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     if not hass.services.has_service(DOMAIN, SERVICE_ADD_RECORD):
-        _register_services(hass, store, entry)
+        _register_services(hass, entry)
 
     return True
 
@@ -206,14 +207,21 @@ def _is_spotify_enabled(entry: ConfigEntry) -> bool:
     )
 
 
-def _register_services(
-    hass: HomeAssistant, store: VinylCollectionStore, entry: ConfigEntry
-) -> None:
-    """Register all vinyl_collection services."""
+def _register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Register all vinyl_collection services.
+
+    Handlers look up the store from hass.data on every call rather than
+    closing over a captured instance, since services are only registered
+    once (guarded by has_service) but a reload replaces the store object
+    each time async_setup_entry runs.
+    """
+
+    def _store() -> VinylCollectionStore:
+        return hass.data[DOMAIN][entry.entry_id]
 
     async def handle_add_record(call: ServiceCall) -> ServiceResponse:
         try:
-            record = await store.async_add_record(dict(call.data))
+            record = await _store().async_add_record(dict(call.data))
         except Exception as err:
             _LOGGER.exception("Failed to add record")
             raise HomeAssistantError(f"Failed to add record: {err}") from err
@@ -224,7 +232,7 @@ def _register_services(
     async def handle_remove_record(call: ServiceCall) -> ServiceResponse:
         record_id = call.data[ATTR_RECORD_ID]
         try:
-            removed = await store.async_remove_record(record_id)
+            removed = await _store().async_remove_record(record_id)
         except Exception as err:
             _LOGGER.exception("Failed to remove record %s", record_id)
             raise HomeAssistantError(f"Failed to remove record: {err}") from err
@@ -238,7 +246,7 @@ def _register_services(
         data = dict(call.data)
         record_id = data.pop(ATTR_RECORD_ID)
         try:
-            record = await store.async_update_record(record_id, data)
+            record = await _store().async_update_record(record_id, data)
         except Exception as err:
             _LOGGER.exception("Failed to update record %s", record_id)
             raise HomeAssistantError(f"Failed to update record: {err}") from err
@@ -250,7 +258,7 @@ def _register_services(
     async def handle_search(call: ServiceCall) -> ServiceResponse:
         query = call.data.get(ATTR_QUERY, "")
         try:
-            results = store.search(query)
+            results = _store().search(query)
         except Exception as err:
             _LOGGER.exception("Search failed for query: %s", query)
             raise HomeAssistantError(f"Search failed: {err}") from err
@@ -259,7 +267,7 @@ def _register_services(
         if query:
             parts = query.split(" - ", 1)
             if len(parts) == 2:
-                exact_match = store.find_by_artist_album(parts[0], parts[1])
+                exact_match = _store().find_by_artist_album(parts[0], parts[1])
 
         return {
             "results": results,

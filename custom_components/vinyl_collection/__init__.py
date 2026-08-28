@@ -139,10 +139,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 return
             await resources.async_create_item({"res_type": "module", "url": CARD_URL})
             _LOGGER.info("Vinyl Collection: registered card as Lovelace resource")
-        except Exception as err:
+        except (AttributeError, KeyError, TypeError) as err:
+            # Expected if Lovelace's internal resource-collection shape changes.
             _LOGGER.warning(
                 "Vinyl Collection: could not auto-register card — add %s manually as a module resource (%s)",
                 CARD_URL, err,
+            )
+        except Exception:
+            # Anything else is unexpected - log it loudly rather than
+            # swallowing it into the same one-line warning as above, but
+            # still don't let a cosmetic dashboard step fail the whole
+            # integration setup.
+            _LOGGER.exception(
+                "Vinyl Collection: unexpected error auto-registering card — add %s manually as a module resource",
+                CARD_URL,
             )
 
     if hass.is_running:

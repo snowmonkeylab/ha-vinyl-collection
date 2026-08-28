@@ -253,6 +253,7 @@ def _register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
         if record is None:
             raise HomeAssistantError(f"Record not found: {record_id}")
         hass.bus.async_fire(EVENT_RECORD_UPDATED, {"record": record})
+        _refresh_sensors(hass)
         return {"record": record}
 
     async def handle_search(call: ServiceCall) -> ServiceResponse:

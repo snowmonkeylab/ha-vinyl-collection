@@ -1352,7 +1352,10 @@ class VinylCollectionCard extends HTMLElement {
   _esc(str) {
     const d = document.createElement("div");
     d.textContent = String(str != null ? str : "");
-    return d.innerHTML;
+    // textContent round-tripping via innerHTML escapes &, < and > but
+    // leaves " untouched, which breaks out of double-quoted HTML
+    // attributes (e.g. src="...") this helper is also used to build.
+    return d.innerHTML.replace(/"/g, "&quot;");
   }
 }
 

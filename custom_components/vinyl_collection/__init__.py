@@ -58,7 +58,7 @@ DISCOGS_RELEASE_URL = "https://api.discogs.com/releases/{}"
 DISCOGS_MASTER_URL = "https://api.discogs.com/masters/{}"
 GET_DISCOGS_TRACKS_SCHEMA = vol.Schema({
     vol.Required(ATTR_DISCOGS_ID): cv.string,
-    vol.Optional("resource_type", default="master"): cv.string,
+    vol.Optional("resource_type", default="release"): cv.string,
 })
 
 

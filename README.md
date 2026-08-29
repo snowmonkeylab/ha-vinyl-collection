@@ -1,5 +1,7 @@
 # ha-vinyl-collection
 
+[![GitHub release](https://img.shields.io/github/v/release/snowmonkeylab/ha-vinyl-collection)](https://github.com/snowmonkeylab/ha-vinyl-collection/releases)
+
 A Home Assistant custom integration for tracking your vinyl record collection
 locally — add records manually or via Discogs lookup, search your collection
 instantly while browsing a record shop, and play albums directly through

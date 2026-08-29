@@ -93,6 +93,7 @@ Use the search bar to filter across artist, album, label, genre, and catalog num
 | `vinyl_collection.update_record` | Update fields on an existing record |
 | `vinyl_collection.search` | Search the collection; returns `results`, `count`, `exact_match` |
 | `vinyl_collection.lookup_discogs` | Search Discogs for a release; returns metadata and cover art |
+| `vinyl_collection.get_discogs_tracks` | Fetch the tracklist for a Discogs release or master; returns `tracks`, `count` |
 | `vinyl_collection.get_config` | Returns integration config state |
 
 All services support response data, making them usable from scripts and automations.

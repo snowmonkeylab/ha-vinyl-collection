@@ -58,8 +58,22 @@ DISCOGS_RELEASE_URL = "https://api.discogs.com/releases/{}"
 DISCOGS_MASTER_URL = "https://api.discogs.com/masters/{}"
 GET_DISCOGS_TRACKS_SCHEMA = vol.Schema({
     vol.Required(ATTR_DISCOGS_ID): cv.string,
-    vol.Optional("resource_type", default="master"): cv.string,
+    vol.Optional("resource_type", default="release"): cv.string,
 })
+
+
+def _valid_cover_url(value: Any) -> str:
+    """Validate an http(s) URL that's also safe to embed in an HTML attribute.
+
+    cv.url only checks the scheme - it does not reject characters like
+    " or < that would let a stored cover_url break out of the
+    double-quoted src="..." attribute the card renders it into.
+    """
+    url = cv.url(value)
+    if any(char in url for char in ('"', "'", "<", ">")):
+        raise vol.Invalid("cover_url contains unsafe characters")
+    return url
+
 
 ADD_RECORD_SCHEMA = vol.Schema(
     {
@@ -70,7 +84,7 @@ ADD_RECORD_SCHEMA = vol.Schema(
         vol.Optional(ATTR_LABEL): cv.string,
         vol.Optional(ATTR_CATALOG_NUMBER): cv.string,
         vol.Optional(ATTR_DISCOGS_ID): cv.string,
-        vol.Optional(ATTR_COVER_URL): cv.string,
+        vol.Optional(ATTR_COVER_URL): _valid_cover_url,
         vol.Optional(ATTR_SPOTIFY_URI): cv.string,
         vol.Optional(ATTR_RATING): vol.All(vol.Coerce(int), vol.Range(min=1, max=5)),
         vol.Optional(ATTR_IS_WISHLIST, default=False): cv.boolean,
@@ -90,7 +104,7 @@ UPDATE_RECORD_SCHEMA = vol.Schema(
         vol.Optional(ATTR_LABEL): cv.string,
         vol.Optional(ATTR_CATALOG_NUMBER): cv.string,
         vol.Optional(ATTR_DISCOGS_ID): cv.string,
-        vol.Optional(ATTR_COVER_URL): cv.string,
+        vol.Optional(ATTR_COVER_URL): _valid_cover_url,
         vol.Optional(ATTR_SPOTIFY_URI): cv.string,
         vol.Optional(ATTR_RATING): vol.All(vol.Coerce(int), vol.Range(min=1, max=5)),
         vol.Optional(ATTR_IS_WISHLIST): cv.boolean,

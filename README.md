@@ -1,7 +1,7 @@
 # ha-vinyl-collection
 
 [![GitHub release](https://img.shields.io/github/v/release/snowmonkeylab/ha-vinyl-collection)](https://github.com/snowmonkeylab/ha-vinyl-collection/releases)
-[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://buymeacoffee.com/snowmonkey1)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-ffdd00?style=flat&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/snowmonkey1)
 
 A Home Assistant custom integration for tracking your vinyl record collection
 locally — add records manually or via Discogs lookup, search your collection

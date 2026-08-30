@@ -24,11 +24,12 @@ Spotify from your dashboard.
 
 ### Via HACS (recommended)
 
-1. HACS → Integrations → ⋮ → Custom repositories
-2. Add `https://github.com/snowmonkeylab/ha-vinyl-collection`, category: Integration
-3. Install "Vinyl Collection", restart Home Assistant
-4. Settings → Devices & Services → Add Integration → "Vinyl Collection"
-5. Add a card to your dashboard:
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=snowmonkeylab&repository=ha-vinyl-collection&category=integration)
+
+1. Click the button above (or: HACS → Integrations → search "Vinyl Collection" → Download)
+2. Restart Home Assistant
+3. Settings → Devices & Services → Add Integration → "Vinyl Collection"
+4. Add a card to your dashboard:
 
    ```yaml
    type: custom:vinyl-collection-card

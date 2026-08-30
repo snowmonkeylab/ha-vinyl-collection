@@ -21,6 +21,7 @@ async def async_setup_entry(
     async_add_entities([
         VinylCollectionCountSensor(hass, store, entry),
         VinylCollectionWishlistSensor(hass, store, entry),
+        VinylCollectionNextBuySensor(hass, store, entry),
     ])
 
 
@@ -87,3 +88,18 @@ class VinylCollectionWishlistSensor(_VinylSensorBase):
     @property
     def native_value(self) -> int:
         return sum(1 for r in self._store.records.values() if r.get("is_wishlist"))
+
+
+class VinylCollectionNextBuySensor(_VinylSensorBase):
+    """Sensor reporting the number of records flagged as next buy."""
+
+    _attr_name = "Next Buy"
+    _attr_icon = "mdi:cart"
+
+    def __init__(self, hass: HomeAssistant, store: VinylCollectionStore, entry: ConfigEntry) -> None:
+        super().__init__(hass, store, entry)
+        self._attr_unique_id = f"{entry.entry_id}_next_buy"
+
+    @property
+    def native_value(self) -> int:
+        return sum(1 for r in self._store.records.values() if r.get("is_next_buy"))

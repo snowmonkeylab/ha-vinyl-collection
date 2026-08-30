@@ -10,6 +10,9 @@ CONF_DISCOGS_ENABLED = "discogs_enabled"
 CONF_SPOTIFY_ENABLED = "spotify_enabled"
 DEFAULT_NAME = "Vinyl Collection"
 
+DISCOGS_USER_AGENT = "ha-vinyl-collection/1.0 +https://github.com/snowmonkeylab/ha-vinyl-collection"
+DISCOGS_IDENTITY_URL = "https://api.discogs.com/oauth/identity"
+
 # Service names
 SERVICE_ADD_RECORD = "add_record"
 SERVICE_REMOVE_RECORD = "remove_record"

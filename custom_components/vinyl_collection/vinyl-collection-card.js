@@ -17,6 +17,8 @@ class VinylCollectionCard extends HTMLElement {
     this._records = [];
     this._searchTimeout = null;
     this._discogsSearchTimeout = null;
+    this._duplicateCheckTimeout = null;
+    this._duplicateCheckToken = 0;
     this._modalRecord = null;
     this._modalRating = 0;
     this._sortCol = "artist";
@@ -446,6 +448,48 @@ class VinylCollectionCard extends HTMLElement {
     root.querySelector("#discogs-results").style.display = "none";
     root.querySelector("#discogs-search-input").value = "";
     this._discogsResults = [];
+
+    this._checkDuplicateNotice();
+  }
+
+  async _checkDuplicateNotice() {
+    const root = this.shadowRoot;
+    const notice = root.querySelector("#duplicate-notice");
+    if (!notice) return;
+
+    // Add-flow only - editing an existing record shouldn't flag itself.
+    if (this._modalRecord && this._modalRecord.record_id) {
+      notice.style.display = "none";
+      return;
+    }
+
+    const artist = root.querySelector("#f-artist").value.trim();
+    const album = root.querySelector("#f-album").value.trim();
+    if (!artist || !album) {
+      notice.style.display = "none";
+      return;
+    }
+
+    const token = ++this._duplicateCheckToken;
+    try {
+      const r = await this._call("search", { query: artist + " - " + album });
+      if (token !== this._duplicateCheckToken) return; // superseded by a newer check
+      const match = r.response.exact_match;
+      const moveBtn = root.querySelector("#duplicate-move-btn");
+      if (match) {
+        root.querySelector("#duplicate-notice-text").textContent = match.is_wishlist
+          ? "This is in your Wish List."
+          : "You already have this in your Collection.";
+        moveBtn.style.display = match.is_wishlist ? "inline" : "none";
+        moveBtn.dataset.recordId = match.record_id;
+        notice.style.display = "flex";
+      } else {
+        moveBtn.style.display = "none";
+        notice.style.display = "none";
+      }
+    } catch (_) {
+      if (token === this._duplicateCheckToken) notice.style.display = "none";
+    }
   }
 
   _renderCoverPreview() {
@@ -536,6 +580,9 @@ class VinylCollectionCard extends HTMLElement {
       ".discogs-search-row input:disabled { opacity: 0.45; cursor: not-allowed; }" +
       ".discogs-hint { margin-top: 6px; font-size: 12px; color: var(--secondary-text-color); line-height: 1.4; display: none; }" +
       ".discogs-disabled-notice { display: none; font-size: 13px; color: var(--secondary-text-color); background: var(--secondary-background-color, #f5f5f5); border-radius: 8px; padding: 10px 14px; line-height: 1.5; }" +
+      ".duplicate-notice { display: none; align-items: center; gap: 8px; font-size: 13px; color: var(--secondary-text-color); background: var(--secondary-background-color, #f5f5f5); border-radius: 8px; padding: 10px 14px; line-height: 1.5; }" +
+      ".duplicate-notice ha-icon { flex-shrink: 0; --mdc-icon-size: 18px; color: var(--warning-color, #ff9800); }" +
+      ".duplicate-notice-action { display: none; background: none; border: none; padding: 0; margin-left: auto; color: var(--primary-color); font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; text-decoration: underline; flex-shrink: 0; }" +
       ".discogs-results { display: none; border: 1px solid var(--divider-color, #ccc); border-radius: 8px; overflow: hidden; }" +
       ".discogs-result { display: flex; gap: 12px; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--divider-color, #eee); align-items: center; }" +
       ".discogs-result:last-child { border-bottom: none; }" +
@@ -671,6 +718,7 @@ class VinylCollectionCard extends HTMLElement {
       "<div class=\"suggestions\" id=\"artist-suggestions\"></div>" +
       "</div></div>" +
       "<div><label>Album *</label><input type=\"text\" id=\"f-album\" autocomplete=\"off\"/></div>" +
+      "<div class=\"duplicate-notice\" id=\"duplicate-notice\"><ha-icon icon=\"mdi:information-outline\"></ha-icon><span id=\"duplicate-notice-text\"></span><button type=\"button\" class=\"duplicate-notice-action\" id=\"duplicate-move-btn\">Move to Collection</button></div>" +
       "<div><label>Year</label><input type=\"number\" id=\"f-year\" min=\"1900\" max=\"2100\"/></div>" +
       "<div><label>Genre</label><select id=\"f-genre-select\"><option value=\"\">--</option>" + this._genreOptions("") + "</select>" +
       "<input type=\"text\" id=\"f-genre-custom\" placeholder=\"Enter genre...\" autocomplete=\"off\" style=\"margin-top:6px;display:none;\"/></div>" +
@@ -796,12 +844,22 @@ class VinylCollectionCard extends HTMLElement {
 
     root.querySelector("#f-artist").addEventListener("input", e => {
       this._updateArtistSuggestions(e.target.value);
+      clearTimeout(this._duplicateCheckTimeout);
+      this._duplicateCheckTimeout = setTimeout(() => this._checkDuplicateNotice(), 500);
     });
     root.querySelector("#f-artist").addEventListener("blur", () => {
       setTimeout(() => {
         const s = root.querySelector("#artist-suggestions");
         if (s) s.style.display = "none";
       }, 150);
+    });
+    root.querySelector("#f-album").addEventListener("input", () => {
+      clearTimeout(this._duplicateCheckTimeout);
+      this._duplicateCheckTimeout = setTimeout(() => this._checkDuplicateNotice(), 500);
+    });
+    root.querySelector("#duplicate-move-btn").addEventListener("click", () => {
+      const id = root.querySelector("#duplicate-move-btn").dataset.recordId;
+      if (id) this._saveRecord({ record_id: id, is_wishlist: false, is_next_buy: false });
     });
 
     root.querySelector("#toggle-wishlist").addEventListener("click", () => {
@@ -870,6 +928,10 @@ class VinylCollectionCard extends HTMLElement {
     root.querySelector("#dialog-save").childNodes[0].textContent = isEdit ? "Save Changes" : "Add to Collection";
     root.querySelector("#dialog-error").style.display = "none";
     root.querySelector("#artist-suggestions").style.display = "none";
+    clearTimeout(this._duplicateCheckTimeout);
+    this._duplicateCheckToken++;
+    root.querySelector("#duplicate-notice").style.display = "none";
+    root.querySelector("#duplicate-move-btn").style.display = "none";
 
     const discogsSection = root.querySelector("#discogs-section");
     const discogsDisabledNotice = root.querySelector("#discogs-disabled-notice");

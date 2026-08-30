@@ -1,5 +1,8 @@
 # ha-vinyl-collection
 
+[![GitHub release](https://img.shields.io/github/v/release/snowmonkeylab/ha-vinyl-collection)](https://github.com/snowmonkeylab/ha-vinyl-collection/releases)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-ffdd00?style=flat&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/snowmonkey1)
+
 A Home Assistant custom integration for tracking your vinyl record collection
 locally — add records manually or via Discogs lookup, search your collection
 instantly while browsing a record shop, and play albums directly through
@@ -23,8 +26,8 @@ Spotify from your dashboard.
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=snowmonkeylab&repository=ha-vinyl-collection&category=integration)
 
-1. Click the button above (or: HACS → Integrations → ⋮ → Custom repositories → add `https://github.com/snowmonkeylab/ha-vinyl-collection`, category: Integration)
-2. Install "Vinyl Collection", restart Home Assistant
+1. Click the button above (or: HACS → Integrations → search "Vinyl Collection" → Download)
+2. Restart Home Assistant
 3. Settings → Devices & Services → Add Integration → "Vinyl Collection"
 4. Add a card to your dashboard:
 

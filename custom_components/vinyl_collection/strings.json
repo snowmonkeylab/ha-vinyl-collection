@@ -15,11 +15,13 @@
         "description": "{status}",
         "data": {
           "discogs_enabled": "Enable Discogs integration",
-          "discogs_token": "Discogs API Token"
+          "discogs_token": "Discogs API Token",
+          "import_collection": "Import my existing Discogs collection"
         },
         "data_description": {
           "discogs_enabled": "Allow the card to search Discogs for records and fetch cover art.",
-          "discogs_token": "Generate a free personal token at discogs.com/settings/developers. It will be checked against the Discogs API before you continue."
+          "discogs_token": "Generate a free personal token at discogs.com/settings/developers. It will be checked against the Discogs API before you continue.",
+          "import_collection": "Adds every vinyl release already in your Discogs collection as a record. Records already in your collection (matched by Discogs ID) are skipped, so this is safe to run again later."
         }
       },
       "spotify": {
@@ -57,11 +59,13 @@
         "description": "{status}",
         "data": {
           "discogs_enabled": "Enable Discogs integration",
-          "discogs_token": "Discogs API Token"
+          "discogs_token": "Discogs API Token",
+          "import_collection": "Import my existing Discogs collection"
         },
         "data_description": {
           "discogs_enabled": "Allow the card to search Discogs for records and fetch cover art.",
-          "discogs_token": "Generate a free personal token at discogs.com/settings/developers. It will be checked against the Discogs API before you continue."
+          "discogs_token": "Generate a free personal token at discogs.com/settings/developers. It will be checked against the Discogs API before you continue.",
+          "import_collection": "Adds every vinyl release already in your Discogs collection as a record. Records already in your collection (matched by Discogs ID) are skipped, so this is safe to run again later."
         }
       },
       "spotify": {

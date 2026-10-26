@@ -12,7 +12,7 @@ Spotify from your dashboard.
 
 - **Local-only storage** — uses Home Assistant's built-in `Store`, no external database
 - **Instant search** across artist, album, label, genre, and catalog number
-- **Discogs integration** — search Discogs to auto-fill artist, album, year, label, catalog number, and cover art when adding a record; view the tracklist for any search result to confirm you have the right album before adding it
+- **Discogs integration** — search Discogs to auto-fill artist, album, year, label, catalog number, and cover art when adding a record; view the tracklist for any search result to confirm you have the right album before adding it; import your entire existing Discogs collection in one go
 - **Spotify integration** — link records to Spotify and play them on any Music Assistant speaker with a single tap
 - **Wish List** — tag records as wanted, with a dedicated tab separate from your collection
 - **Multi-user support** — attribute records to household members (HA People), filter the view by person
@@ -50,6 +50,7 @@ During setup and via **Settings → Devices & Services → Vinyl Collection → 
 | --- | --- |
 | **Discogs API Token** | Optional. Generate a free personal token at [discogs.com/settings/developers](https://www.discogs.com/settings/developers). Required when Discogs is enabled. |
 | **Enable Discogs integration** | Allow the card to search Discogs for records and fetch cover art. |
+| **Import my existing Discogs collection** | Shown once your Discogs token is validated. Imports every vinyl release already in your Discogs collection as a record, skipping anything already in your collection (matched by Discogs ID) — safe to run again later to pick up new additions. Also available anytime afterward via the `vinyl_collection.import_discogs_collection` service. |
 | **Enable Spotify integration** | Allow the card to search Spotify and link records for playback. Requires the [Home Assistant Spotify integration](https://www.home-assistant.io/integrations/spotify/). For speaker playback, [Music Assistant](https://music-assistant.io) must also be installed. |
 
 ## Using the Card
@@ -98,6 +99,7 @@ Use the search bar to filter across artist, album, label, genre, and catalog num
 | `vinyl_collection.search` | Search the collection; returns `results`, `count`, `exact_match` |
 | `vinyl_collection.lookup_discogs` | Search Discogs for a release; returns metadata and cover art |
 | `vinyl_collection.get_discogs_tracks` | Fetch the tracklist for a Discogs release or master; returns `tracks`, `count` |
+| `vinyl_collection.import_discogs_collection` | Import your existing Discogs collection, skipping duplicates by Discogs ID; returns `imported`, `skipped_duplicates`, `skipped_non_vinyl`, `skipped_invalid`, `total_found` |
 | `vinyl_collection.get_config` | Returns integration config state |
 
 All services support response data, making them usable from scripts and automations.

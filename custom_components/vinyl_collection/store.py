@@ -85,6 +85,10 @@ class VinylCollectionStore:
         if record_id not in self._records:
             return None
         self._records[record_id].update(updates)
+        # Next Buy only makes sense for wish list items; once a record is
+        # in the main collection it is owned, so the flag is cleared.
+        if not self._records[record_id].get("is_wishlist"):
+            self._records[record_id]["is_next_buy"] = False
         await self.async_save()
         return self._records[record_id]
 

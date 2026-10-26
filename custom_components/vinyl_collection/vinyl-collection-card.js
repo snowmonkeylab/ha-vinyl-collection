@@ -969,6 +969,9 @@ class VinylCollectionCard extends HTMLElement {
 
     this._setChipActive(root.querySelector("#toggle-wishlist"), !!r.is_wishlist);
     this._setChipActive(root.querySelector("#toggle-next-buy"), !!r.is_next_buy);
+    // Owned records can't go back on the wish list; only new records and
+    // existing wish list items get the toggle.
+    root.querySelector("#toggle-wishlist").style.display = (!isEdit || r.is_wishlist) ? "inline-flex" : "none";
     this._updateNextBuyVisibility();
     root.querySelector("#f-artist").value = r.artist || "";
     root.querySelector("#f-album").value = r.album || "";

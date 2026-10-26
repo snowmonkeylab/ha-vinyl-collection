@@ -166,9 +166,7 @@ class _VinylCollectionStepsMixin:
                                 self.hass, store, token
                             )
                             import_result_text = (
-                                f" Imported {result['imported']} records from Discogs"
-                                f" ({result['skipped_duplicates']} already had,"
-                                f" {result['skipped_non_vinyl']} not vinyl)."
+                                f" Imported {result['imported']} vinyl records from Discogs."
                             )
                             self._collection_imported = True
                         except Exception as err:  # noqa: BLE001 - surface any failure, don't crash setup

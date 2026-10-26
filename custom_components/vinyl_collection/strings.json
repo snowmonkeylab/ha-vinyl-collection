@@ -21,7 +21,7 @@
         "data_description": {
           "discogs_enabled": "Allow the card to search Discogs for records and fetch cover art.",
           "discogs_token": "Generate a free personal token at discogs.com/settings/developers. It will be checked against the Discogs API before you continue.",
-          "import_collection": "Adds every vinyl release already in your Discogs collection as a record. Records already in your collection (matched by Discogs ID) are skipped, so this is safe to run again later."
+          "import_collection": "Adds every vinyl release in your Discogs collection as a record, skipping ones already here by Discogs ID. Records you entered manually (not via Discogs search) could be duplicated."
         }
       },
       "spotify": {
@@ -65,7 +65,7 @@
         "data_description": {
           "discogs_enabled": "Allow the card to search Discogs for records and fetch cover art.",
           "discogs_token": "Generate a free personal token at discogs.com/settings/developers. It will be checked against the Discogs API before you continue.",
-          "import_collection": "Adds every vinyl release already in your Discogs collection as a record. Records already in your collection (matched by Discogs ID) are skipped, so this is safe to run again later."
+          "import_collection": "Adds every vinyl release in your Discogs collection as a record, skipping ones already here by Discogs ID. Records you entered manually (not via Discogs search) could be duplicated."
         }
       },
       "spotify": {

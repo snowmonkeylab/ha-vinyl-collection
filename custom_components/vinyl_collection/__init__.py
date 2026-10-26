@@ -21,6 +21,7 @@ from .const import (
     ATTR_CATALOG_NUMBER,
     ATTR_COVER_URL,
     ATTR_DISCOGS_ID,
+    ATTR_DISCOGS_RESOURCE_TYPE,
     ATTR_GENRE,
     ATTR_IS_NEXT_BUY,
     ATTR_IS_WISHLIST,
@@ -30,6 +31,7 @@ from .const import (
     ATTR_RATING,
     ATTR_RECORD_ID,
     ATTR_SPOTIFY_URI,
+    ATTR_TRACKS,
     ATTR_YEAR,
     CONF_DISCOGS_ENABLED,
     CONF_DISCOGS_TOKEN,
@@ -87,6 +89,14 @@ def _valid_cover_url(value: Any) -> str:
     return url
 
 
+TRACK_SCHEMA = vol.Schema(
+    {
+        vol.Optional("position"): cv.string,
+        vol.Optional("title"): cv.string,
+        vol.Optional("duration"): cv.string,
+    }
+)
+
 ADD_RECORD_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_ARTIST): cv.string,
@@ -96,12 +106,14 @@ ADD_RECORD_SCHEMA = vol.Schema(
         vol.Optional(ATTR_LABEL): cv.string,
         vol.Optional(ATTR_CATALOG_NUMBER): cv.string,
         vol.Optional(ATTR_DISCOGS_ID): cv.string,
+        vol.Optional(ATTR_DISCOGS_RESOURCE_TYPE): vol.In(["release", "master"]),
         vol.Optional(ATTR_COVER_URL): _valid_cover_url,
         vol.Optional(ATTR_SPOTIFY_URI): cv.string,
         vol.Optional(ATTR_RATING): vol.All(vol.Coerce(int), vol.Range(min=1, max=5)),
         vol.Optional(ATTR_IS_WISHLIST, default=False): cv.boolean,
         vol.Optional(ATTR_IS_NEXT_BUY, default=False): cv.boolean,
         vol.Optional(ATTR_OWNED_BY, default=[]): [cv.string],
+        vol.Optional(ATTR_TRACKS): [TRACK_SCHEMA],
     }
 )
 
@@ -117,12 +129,14 @@ UPDATE_RECORD_SCHEMA = vol.Schema(
         vol.Optional(ATTR_LABEL): cv.string,
         vol.Optional(ATTR_CATALOG_NUMBER): cv.string,
         vol.Optional(ATTR_DISCOGS_ID): cv.string,
+        vol.Optional(ATTR_DISCOGS_RESOURCE_TYPE): vol.In(["release", "master"]),
         vol.Optional(ATTR_COVER_URL): _valid_cover_url,
         vol.Optional(ATTR_SPOTIFY_URI): cv.string,
         vol.Optional(ATTR_RATING): vol.All(vol.Coerce(int), vol.Range(min=1, max=5)),
         vol.Optional(ATTR_IS_WISHLIST): cv.boolean,
         vol.Optional(ATTR_IS_NEXT_BUY): cv.boolean,
         vol.Optional(ATTR_OWNED_BY): [cv.string],
+        vol.Optional(ATTR_TRACKS): [TRACK_SCHEMA],
     }
 )
 

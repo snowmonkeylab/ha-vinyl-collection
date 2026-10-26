@@ -439,6 +439,7 @@ class VinylCollectionCard extends HTMLElement {
     root.querySelector("#f-label").value = result.label || "";
     root.querySelector("#f-catalog-number").value = result.catalog_number || "";
     root.querySelector("#f-discogs-id").value = result.discogs_id || "";
+    root.querySelector("#f-discogs-resource-type").value = result.resource_type || "";
     root.querySelector("#f-cover-url").value = result.cover_url || "";
     root.querySelector("#f-spotify-uri").value = result.spotify_uri || "";
 
@@ -742,6 +743,7 @@ class VinylCollectionCard extends HTMLElement {
       "<input type=\"hidden\" id=\"f-label\"/>" +
       "<input type=\"hidden\" id=\"f-catalog-number\"/>" +
       "<input type=\"hidden\" id=\"f-discogs-id\"/>" +
+      "<input type=\"hidden\" id=\"f-discogs-resource-type\"/>" +
       "<input type=\"hidden\" id=\"f-cover-url\"/>" +
       "<input type=\"hidden\" id=\"f-spotify-uri\"/>" +
       "<hr class=\"section-divider\"/>" +
@@ -785,6 +787,12 @@ class VinylCollectionCard extends HTMLElement {
       "<div class=\"dialog-actions\">" +
       "<button class=\"btn btn-cancel\" id=\"play-picker-cancel\">Cancel</button>" +
       "</div>" +
+      "</div>" +
+      "</div>" +
+      "<div class=\"overlay\" id=\"tracklist-overlay\">" +
+      "<div class=\"play-picker-dialog\">" +
+      "<div class=\"dialog-header\"><h3>Tracklist</h3><button type=\"button\" class=\"icon-btn\" id=\"tracklist-close-x\" title=\"Close\"><ha-icon icon=\"mdi:close\"></ha-icon></button></div>" +
+      "<div id=\"tracklist-body\"></div>" +
       "</div>" +
       "</div>";
 
@@ -915,6 +923,11 @@ class VinylCollectionCard extends HTMLElement {
     root.querySelector("#play-picker-overlay").addEventListener("click", e => {
       if (e.target === root.querySelector("#play-picker-overlay")) this._closePlayPicker();
     });
+
+    root.querySelector("#tracklist-close-x").addEventListener("click", () => this._closeTracklistView());
+    root.querySelector("#tracklist-overlay").addEventListener("click", e => {
+      if (e.target === root.querySelector("#tracklist-overlay")) this._closeTracklistView();
+    });
   }
 
   _renderDialog() {
@@ -979,6 +992,7 @@ class VinylCollectionCard extends HTMLElement {
     root.querySelector("#f-label").value = r.label || "";
     root.querySelector("#f-catalog-number").value = r.catalog_number || "";
     root.querySelector("#f-discogs-id").value = r.discogs_id || "";
+    root.querySelector("#f-discogs-resource-type").value = r.discogs_resource_type || "";
     root.querySelector("#f-cover-url").value = r.cover_url || "";
     root.querySelector("#f-spotify-uri").value = r.spotify_uri || "";
 
@@ -1087,6 +1101,9 @@ class VinylCollectionCard extends HTMLElement {
     const discogsId = root.querySelector("#f-discogs-id").value.trim();
     if (discogsId) data.discogs_id = discogsId;
 
+    const discogsResourceType = root.querySelector("#f-discogs-resource-type").value.trim();
+    if (discogsResourceType) data.discogs_resource_type = discogsResourceType;
+
     const coverUrl = root.querySelector("#f-cover-url").value.trim();
     if (coverUrl) data.cover_url = coverUrl;
 
@@ -1147,6 +1164,7 @@ class VinylCollectionCard extends HTMLElement {
       "<td>" + this._esc(r.genre || "") + "</td>" +
       "<td class=\"actions\">" +
       (r.is_next_buy ? "<span class=\"icon-btn cart-indicator\" title=\"Next Buy\" style=\"cursor:default;\"><ha-icon icon=\"mdi:cart\"></ha-icon></span>" : "") +
+      (r.discogs_id ? "<button class=\"icon-btn\" data-id=\"" + r.record_id + "\" data-action=\"tracklist\" title=\"View Tracklist\"><ha-icon icon=\"mdi:format-list-numbered\"></ha-icon></button>" : "") +
       (r.spotify_uri ? "<button class=\"icon-btn play-btn\" data-id=\"" + r.record_id + "\" data-action=\"play\" title=\"Play on Spotify\"><ha-icon icon=\"mdi:spotify\"></ha-icon></button>" : "") +
       "<button class=\"icon-btn\" data-id=\"" + r.record_id + "\" data-action=\"delete\" title=\"Delete\"><ha-icon icon=\"mdi:delete\"></ha-icon></button>" +
       "</td></tr>"
@@ -1167,6 +1185,7 @@ class VinylCollectionCard extends HTMLElement {
         const id = btn.dataset.id;
         const rec = this._records.find(r => r.record_id === id);
         if (btn.dataset.action === "play") { if (rec) this._openPlayPicker(rec); }
+        else if (btn.dataset.action === "tracklist") { if (rec) this._openTracklistView(rec); }
         else { this._openDeleteDialog(id); }
       });
     });
@@ -1208,6 +1227,7 @@ class VinylCollectionCard extends HTMLElement {
           if (!rec) return;
           const rect = btn.getBoundingClientRect();
           fixedMenu.innerHTML =
+            (rec.discogs_id ? "<div class=\"overflow-item\" data-action=\"tracklist\"><ha-icon icon=\"mdi:format-list-numbered\" style=\"width:18px;height:18px;\"></ha-icon>Tracklist</div>" : "") +
             (rec.spotify_uri ? "<div class=\"overflow-item\" data-action=\"play\"><ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;width:18px;height:18px;\"></ha-icon>Play</div>" : "") +
             "<div class=\"overflow-item danger\" data-action=\"delete\"><ha-icon icon=\"mdi:delete\" style=\"width:18px;height:18px;\"></ha-icon>Delete</div>";
           const menuHeight = 120;
@@ -1224,6 +1244,7 @@ class VinylCollectionCard extends HTMLElement {
               fixedMenu.classList.remove("open");
               if (item.dataset.action === "edit") { if (rec) this._openDialog(rec); }
               else if (item.dataset.action === "play") { if (rec) this._openPlayPicker(rec); }
+              else if (item.dataset.action === "tracklist") { if (rec) this._openTracklistView(rec); }
               else { this._openDeleteDialog(rec.record_id); }
             }, { once: true });
           });
@@ -1449,6 +1470,85 @@ class VinylCollectionCard extends HTMLElement {
   _closePlayPicker() {
     this.shadowRoot.querySelector("#play-picker-overlay").classList.remove("open");
     this._playPickerRecord = null;
+  }
+
+  _tracklistHeaderHTML(record) {
+    return "<div class=\"track-header-info\">" +
+      this._coverHTML(record.cover_url, 44) +
+      "<div class=\"track-header-text\">" +
+      "<div class=\"track-header-artist\">" + this._esc(record.artist) + "</div>" +
+      "<div class=\"track-header-album\">" + this._esc(record.album) + "</div>" +
+      "</div></div>";
+  }
+
+  _tracklistRowsHTML(tracks) {
+    return "<div class=\"track-list\">" +
+      (tracks.length === 0
+        ? "<div style=\"padding:12px;color:var(--secondary-text-color);font-size:13px;\">No tracks found.</div>"
+        : tracks.map(t =>
+            "<div class=\"track-row\">" +
+            "<span class=\"track-position\">" + this._esc(t.position || "") + "</span>" +
+            "<span class=\"track-title\">" + this._esc(t.title || "") + "</span>" +
+            (t.duration ? "<span class=\"track-duration\">" + this._esc(t.duration) + "</span>" : "") +
+            "</div>"
+          ).join("")
+      ) +
+      "</div>";
+  }
+
+  async _openTracklistView(record) {
+    const body = this.shadowRoot.querySelector("#tracklist-body");
+    this.shadowRoot.querySelector("#tracklist-overlay").classList.add("open");
+
+    if (record.tracks && record.tracks.length) {
+      body.innerHTML = this._tracklistHeaderHTML(record) + this._tracklistRowsHTML(record.tracks);
+      return;
+    }
+
+    if (!record.discogs_resource_type) {
+      // Discogs uses separate, independently-numbered ID sequences for
+      // releases vs. masters that can collide (the same numeric ID can be a
+      // real, unrelated release AND a real master) - guessing "release" and
+      // treating a failure as "must be master" isn't safe, since a collision
+      // returns a real but completely wrong tracklist rather than an error.
+      // Records added before this feature only have a bare discogs_id with
+      // no recorded type, so there's nothing to safely guess from here.
+      body.innerHTML = this._tracklistHeaderHTML(record) +
+        "<div style=\"padding:12px;color:var(--secondary-text-color);font-size:13px;\">Tracklist isn't available for this record yet. Edit it and re-select it from Discogs search to enable tracklist support.</div>";
+      return;
+    }
+
+    body.innerHTML = this._tracklistHeaderHTML(record) +
+      "<div style=\"display:flex;align-items:center;gap:8px;padding:12px;color:var(--secondary-text-color);font-size:13px;\"><div class=\"spinner\" style=\"width:16px;height:16px;border-width:2px;\"></div>Loading tracks...</div>";
+
+    let tracks = [];
+    try {
+      const resp = await this._call("get_discogs_tracks", {
+        discogs_id: record.discogs_id,
+        resource_type: record.discogs_resource_type,
+      });
+      tracks = resp.response.tracks || [];
+    } catch (_) {
+      tracks = [];
+    }
+
+    if (this.shadowRoot.querySelector("#tracklist-overlay").classList.contains("open")) {
+      body.innerHTML = this._tracklistHeaderHTML(record) + this._tracklistRowsHTML(tracks);
+    }
+
+    if (tracks.length) {
+      try {
+        await this._call("update_record", { record_id: record.record_id, tracks });
+        record.tracks = tracks;
+      } catch (_) {
+        // Non-fatal - tracks are still shown for this session, just not
+        // persisted, so the next open will fetch again.
+      }
+    }
+  }
+
+  _closeTracklistView() {
+    this.shadowRoot.querySelector("#tracklist-overlay").classList.remove("open");
   }
 
   _playRecord(entityId, record) {

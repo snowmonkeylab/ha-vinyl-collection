@@ -11,6 +11,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import BooleanSelector
 
+from . import async_import_discogs_collection
 from .const import (
     CONF_DISCOGS_ENABLED,
     CONF_DISCOGS_TOKEN,
@@ -21,6 +22,9 @@ from .const import (
     DISCOGS_USER_AGENT,
     DOMAIN,
 )
+from .store import VinylCollectionStore
+
+IMPORT_COLLECTION_FIELD = "import_collection"
 
 INTEGRATION_INFO = {
     "spotify": ("Spotify", "Lets the card search Spotify and link tracks to your records."),
@@ -70,8 +74,20 @@ class _VinylCollectionStepsMixin:
     hass: HomeAssistant
     _data: dict[str, Any]
     _discogs_username: str | None
+    _collection_imported: bool
 
     def _finish(self) -> FlowResult:
+        raise NotImplementedError
+
+    async def _get_import_store(self) -> VinylCollectionStore:
+        """Return the store to import into.
+
+        A fresh, loaded store for initial setup (no entry/live store exists
+        yet - safe since the real async_setup_entry loads from disk
+        afterward), or the *live* running store for Configure, where a
+        second store instance writing to the same file would go stale
+        exactly like the reload bug this integration already had fixed.
+        """
         raise NotImplementedError
 
     async def async_step_name(self, user_input: dict[str, Any] | None = None) -> FlowResult:
@@ -98,44 +114,87 @@ class _VinylCollectionStepsMixin:
         errors: dict[str, str] = {}
         enabled = self._data[CONF_DISCOGS_ENABLED]
         token = self._data.get(CONF_DISCOGS_TOKEN, "")
-        confirmed = False
+        import_requested = False
+        show_status = False
+        import_result_text = ""
 
         if user_input is not None:
             enabled = user_input[CONF_DISCOGS_ENABLED]
             token = user_input.get(CONF_DISCOGS_TOKEN, "").strip()
+            import_requested = user_input.get(IMPORT_COLLECTION_FIELD, False)
             self._data[CONF_DISCOGS_ENABLED] = enabled
 
             if not enabled:
                 self._data[CONF_DISCOGS_TOKEN] = ""
                 self._discogs_username = None
+                self._collection_imported = False
                 return await self.async_step_spotify()
 
             if not token:
                 errors[CONF_DISCOGS_TOKEN] = "token_required"
-            elif token == self._data.get(CONF_DISCOGS_TOKEN) and self._discogs_username:
-                # Already validated this exact token - user is clicking past
-                # the confirmation message to continue.
-                return await self.async_step_spotify()
             else:
-                error, username = await _async_validate_discogs_token(self.hass, token)
-                if error == "invalid_auth":
-                    errors[CONF_DISCOGS_TOKEN] = error
-                elif error:
-                    errors["base"] = error
-                else:
-                    self._data[CONF_DISCOGS_TOKEN] = token
-                    self._discogs_username = username
-                    confirmed = True
+                already_valid = (
+                    token == self._data.get(CONF_DISCOGS_TOKEN) and self._discogs_username
+                )
+                just_validated = False
+                if not already_valid:
+                    error, username = await _async_validate_discogs_token(self.hass, token)
+                    if error == "invalid_auth":
+                        errors[CONF_DISCOGS_TOKEN] = error
+                    elif error:
+                        errors["base"] = error
+                    else:
+                        self._data[CONF_DISCOGS_TOKEN] = token
+                        self._discogs_username = username
+                        # A (re)validated token - possibly changed since the
+                        # last successful import - starts eligible again.
+                        self._collection_imported = False
+                        already_valid = True
+                        just_validated = True
+
+                if already_valid and not errors:
+                    ran_import = False
+                    if import_requested and not self._collection_imported:
+                        # Run even when the token itself didn't need
+                        # re-validating this submission - otherwise checking
+                        # the import box *after* an already-confirmed token,
+                        # or retrying after a failed import, would silently
+                        # do nothing (both were previously the case here).
+                        try:
+                            store = await self._get_import_store()
+                            result = await async_import_discogs_collection(
+                                self.hass, store, token
+                            )
+                            import_result_text = (
+                                f" Imported {result['imported']} vinyl records from Discogs."
+                            )
+                            self._collection_imported = True
+                        except Exception as err:  # noqa: BLE001 - surface any failure, don't crash setup
+                            import_result_text = f" ⚠️ Collection import failed: {err}"
+                        ran_import = True
+
+                    if just_validated or ran_import:
+                        # Either the first confirmation of this token, or
+                        # something just happened worth reporting - show it
+                        # instead of silently advancing.
+                        show_status = True
+                    else:
+                        # Already confirmed earlier, nothing new this
+                        # submission - this is the "click Submit to
+                        # continue" case.
+                        return await self.async_step_spotify()
 
         schema = vol.Schema(
             {
                 vol.Optional(CONF_DISCOGS_ENABLED, default=enabled): BooleanSelector(),
                 vol.Optional(CONF_DISCOGS_TOKEN, default=token): str,
+                vol.Optional(IMPORT_COLLECTION_FIELD, default=import_requested): BooleanSelector(),
             }
         )
         status = (
-            f"✅ Connected as {self._discogs_username} — press Submit to continue."
-            if confirmed
+            f"✅ Connected as {self._discogs_username}.{import_result_text}"
+            f" Press Submit to continue."
+            if show_status
             else ""
         )
         return self.async_show_form(
@@ -194,10 +253,20 @@ class VinylCollectionConfigFlow(
             CONF_SPOTIFY_ENABLED: False,
         }
         self._discogs_username = None
+        self._collection_imported = False
         return await self.async_step_name()
 
     def _finish(self) -> FlowResult:
         return self.async_create_entry(title=self._data[CONF_NAME], data=self._data)
+
+    async def _get_import_store(self) -> VinylCollectionStore:
+        # No entry (and so no live store) exists yet at this point in
+        # setup - a fresh store loaded from disk is safe here, since the
+        # real async_setup_entry's own store load happens afterward and
+        # will pick up whatever this one just wrote.
+        store = VinylCollectionStore(self.hass)
+        await store.async_load()
+        return store
 
     @staticmethod
     @callback
@@ -224,7 +293,15 @@ class VinylCollectionOptionsFlow(_VinylCollectionStepsMixin, config_entries.Opti
             ),
         }
         self._discogs_username = None
+        self._collection_imported = False
         return await self.async_step_name()
+
+    async def _get_import_store(self) -> VinylCollectionStore:
+        # An entry already exists here, with services/sensors already bound
+        # to its live store object - importing through a second, separate
+        # store instance would silently diverge from what's actually
+        # running, the exact class of bug already fixed for reloads.
+        return self.hass.data[DOMAIN][self.config_entry.entry_id]
 
     def _finish(self) -> FlowResult:
         self.hass.config_entries.async_update_entry(

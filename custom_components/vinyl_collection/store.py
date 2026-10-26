@@ -41,15 +41,34 @@ class VinylCollectionStore:
     def count(self) -> int:
         return len(self._records)
 
-    async def async_add_record(self, record: dict[str, Any]) -> dict[str, Any]:
-        """Add a new record and return it (including generated id)."""
+    def _prepare_new_record(self, record: dict[str, Any]) -> dict[str, Any]:
+        """Assign a fresh id/date_added and stage a record in memory (no save)."""
         record_id = str(uuid.uuid4())
         record = dict(record)
         record["record_id"] = record_id
         record["date_added"] = datetime.now().isoformat()
         self._records[record_id] = record
+        return record
+
+    async def async_add_record(self, record: dict[str, Any]) -> dict[str, Any]:
+        """Add a new record and return it (including generated id)."""
+        record = self._prepare_new_record(record)
         await self.async_save()
         return record
+
+    async def async_add_records_bulk(
+        self, records: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Add many records at once, saving to disk only once at the end.
+
+        For a bulk import, calling async_add_record per record means one
+        full-collection disk write per record - fine for a handful of adds,
+        wasteful for hundreds. This stages everything in memory first.
+        """
+        added = [self._prepare_new_record(record) for record in records]
+        if added:
+            await self.async_save()
+        return added
 
     async def async_remove_record(self, record_id: str) -> bool:
         """Remove a record by id. Returns True if it existed."""

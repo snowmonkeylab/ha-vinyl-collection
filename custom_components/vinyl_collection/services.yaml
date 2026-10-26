@@ -204,3 +204,11 @@ get_discogs_tracks:
 get_config:
   name: Get Config
   description: Returns integration configuration state, including whether Discogs is enabled and a token is set. No outbound calls made.
+
+import_discogs_collection:
+  name: Import Discogs Collection
+  description: >-
+    Import your existing Discogs collection (folder "All") as records,
+    skipping any already in your collection by Discogs ID. Non-vinyl-only
+    releases (CD, cassette, digital, etc. with no vinyl format) are skipped.
+    Requires Discogs to be enabled with a valid token.

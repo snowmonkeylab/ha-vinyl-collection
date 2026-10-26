@@ -21,6 +21,7 @@ SERVICE_SEARCH = "search"
 SERVICE_LOOKUP_DISCOGS = "lookup_discogs"
 SERVICE_GET_DISCOGS_TRACKS = "get_discogs_tracks"
 SERVICE_GET_CONFIG = "get_config"
+SERVICE_IMPORT_DISCOGS_COLLECTION = "import_discogs_collection"
 
 # Record fields
 ATTR_RECORD_ID = "record_id"

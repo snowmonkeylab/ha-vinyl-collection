@@ -15,8 +15,10 @@ Spotify from your dashboard.
 - **Discogs integration** — search Discogs to auto-fill artist, album, year, label, catalog number, and cover art when adding a record; view the tracklist for any search result to confirm you have the right album before adding it; import your entire existing Discogs collection in one go
 - **Spotify integration** — link records to Spotify and play them on any Music Assistant speaker with a single tap
 - **Wish List** — tag records as wanted, with a dedicated tab separate from your collection
+- **Next Buy** — flag the wish list items you plan to buy next; the flag clears automatically once a record moves into your collection
+- **Duplicate check** — typing an artist and album warns you if it's already in your collection or wish list, with a one-tap move to your collection for wish list items
 - **Multi-user support** — attribute records to household members (HA People), filter the view by person
-- **Two sensors** — total collection count and wish list count, usable in automations and dashboards
+- **Three sensors** — total collection count, wish list count and Next Buy count, usable in automations and dashboards
 - **Custom Lovelace card** — automatically registered on install, no manual resource setup needed
 - **Services** for use in automations and scripts: `add_record`, `remove_record`, `update_record`, `search`
 
@@ -61,7 +63,7 @@ During setup and via **Settings → Devices & Services → Vinyl Collection → 
 2. Optionally search Discogs to auto-fill fields — each result has a **Tracks** button that fetches the full tracklist so you can confirm you have the right album or pressing before selecting it
 3. Select a result to populate artist, album, year, label, catalog number, and cover art
 4. Fill in or adjust artist, album, year, genre, and rating
-5. Toggle **Wish List** if this is a record you want but don't yet own
+5. Toggle **Wish List** if this is a record you want but don't yet own, and **Next Buy** if it's the one you're planning to buy next
 6. If multiple HA People are configured, tap profile pictures under **Owner** to attribute the record
 7. If Spotify is enabled, click **Search Spotify** to link the record — this enables the play button in the table
 8. Click **Add to Collection**
@@ -69,6 +71,8 @@ During setup and via **Settings → Devices & Services → Vinyl Collection → 
 ### Wish List
 
 The card has two tabs — **Collection** and **Wish List**. Records marked as wish list items appear only in the Wish List tab, keeping your owned records separate from ones you're looking for.
+
+The **Wish List** toggle only appears when adding a new record or editing a record that's already on the wish list. To move an item into your collection, edit it and switch **Wish List** off (or use the move button in the duplicate notice when re-adding it). Once a record is in your collection it can't be put back on the wish list, and any **Next Buy** flag is cleared automatically.
 
 ### Playing a record
 
@@ -88,6 +92,7 @@ Use the search bar to filter across artist, album, label, genre, and catalog num
 | --- | --- |
 | `sensor.vinyl_collection_total_records` | Number of records in your collection (excludes wish list) |
 | `sensor.vinyl_collection_wish_list` | Number of records on your wish list |
+| `sensor.vinyl_collection_next_buy` | Number of wish list records flagged Next Buy |
 
 ## Services
 

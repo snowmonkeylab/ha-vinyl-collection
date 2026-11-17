@@ -169,12 +169,29 @@ class VinylCollectionCard extends HTMLElement {
     this._setSaving(false);
   }
 
+  async _quickUpdate(data) {
+    try {
+      await this._call("update_record", data);
+      const q = this.shadowRoot.querySelector("#search-input").value;
+      await this._search(q);
+    } catch (e) {
+      console.error("Update failed", e);
+      alert("Update failed: " + e.message);
+    }
+  }
+
+  _wishlistAction(rec, action) {
+    if (action === "next-buy") this._quickUpdate({ record_id: rec.record_id, is_next_buy: !rec.is_next_buy });
+    else if (action === "to-collection") this._quickUpdate({ record_id: rec.record_id, is_wishlist: false, is_next_buy: false });
+  }
+
   async _deleteRecord(id) {
     const btn = this.shadowRoot.querySelector("#delete-confirm");
     if (btn) { btn.disabled = true; btn.style.opacity = "0.6"; }
     try {
       await this._call("remove_record", { record_id: id });
       this._closeDeleteDialog();
+      this._closeDialog();
       const q = this.shadowRoot.querySelector("#search-input").value;
       await this._search(q);
     } catch (e) {
@@ -540,7 +557,7 @@ class VinylCollectionCard extends HTMLElement {
       ".overflow-wrap { flex-shrink: 0; display: flex; align-items: center; }" +
       ".overflow-btn { background: none; border: none; cursor: pointer; padding: 4px 6px; border-radius: 6px; color: var(--primary-text-color); opacity: 0.7; display: flex; align-items: center; }" +
       ".overflow-btn:hover { opacity: 1; background: var(--secondary-background-color); }" +
-      ".overflow-menu-fixed { position: fixed; background: var(--card-background-color, #fff); color: var(--primary-text-color); border: 1px solid var(--divider-color, #ccc); border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.25); z-index: 99999; min-width: 130px; overflow: hidden; display: none; }" +
+      ".overflow-menu-fixed { position: fixed; background: var(--card-background-color, #fff); color: var(--primary-text-color); border: 1px solid var(--divider-color, #ccc); border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.25); z-index: 99999; min-width: 200px; overflow: hidden; display: none; }" +
       ".overflow-menu-fixed.open { display: block; }" +
       ".overflow-item { padding: 10px 16px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: var(--primary-text-color); }" +
       ".overflow-item:hover { background: var(--secondary-background-color); }" +
@@ -627,10 +644,15 @@ class VinylCollectionCard extends HTMLElement {
       ".star-pick .star { font-size: 28px; cursor: pointer; color: var(--disabled-text-color, #ccc); line-height: 1; }" +
       ".star-pick .star.on { color: var(--primary-text-color); }" +
       ".dialog-error { display: none; font-size: 13px; color: var(--error-color, #db4437); }" +
+      ".view-tracklist-btn { display: none; align-items: center; gap: 6px; margin-top: 6px; padding: 0; background: none; border: none; cursor: pointer; font-family: inherit; font-size: 13px; line-height: 18px; color: var(--primary-text-color); }" +
+      ".view-tracklist-btn ha-icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; --mdc-icon-size: 18px; }" +
+      ".view-tracklist-btn:hover { opacity: 0.8; }" +
       ".dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 4px; }" +
       ".btn { padding: 0 16px; height: 36px; border-radius: 18px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; border: none; display: inline-flex; align-items: center; }" +
       ".btn-cancel { background: none; color: var(--primary-color); border: 1px solid var(--divider-color, #ccc); }" +
       ".btn-save { background: var(--primary-color); color: var(--text-primary-color, #fff); }" +
+      ".btn-delete-outline { color: var(--error-color, #db4437); border-color: var(--error-color, #db4437); }" +
+      ".btn-delete-outline:hover { background: var(--error-color, #db4437); color: #fff; opacity: 1; }" +
       ".btn-delete { background: var(--error-color, #db4437); color: #fff; }" +
       ".btn:hover { opacity: 0.85; }" +
       ".btn:disabled { cursor: not-allowed; }" +
@@ -718,7 +740,8 @@ class VinylCollectionCard extends HTMLElement {
       "<input type=\"text\" id=\"f-artist\" autocomplete=\"off\"/>" +
       "<div class=\"suggestions\" id=\"artist-suggestions\"></div>" +
       "</div></div>" +
-      "<div><label>Album *</label><input type=\"text\" id=\"f-album\" autocomplete=\"off\"/></div>" +
+      "<div><label>Album *</label><input type=\"text\" id=\"f-album\" autocomplete=\"off\"/>" +
+      "<button type=\"button\" class=\"view-tracklist-btn\" id=\"view-tracklist-btn\"><ha-icon icon=\"mdi:format-list-numbered\" style=\"width:18px;height:18px;\"></ha-icon>View tracklist</button></div>" +
       "<div class=\"duplicate-notice\" id=\"duplicate-notice\"><ha-icon icon=\"mdi:information-outline\"></ha-icon><span id=\"duplicate-notice-text\"></span><button type=\"button\" class=\"duplicate-notice-action\" id=\"duplicate-move-btn\">Move to Collection</button></div>" +
       "<div><label>Year</label><input type=\"number\" id=\"f-year\" min=\"1900\" max=\"2100\"/></div>" +
       "<div><label>Genre</label><select id=\"f-genre-select\"><option value=\"\">--</option>" + this._genreOptions("") + "</select>" +
@@ -765,7 +788,7 @@ class VinylCollectionCard extends HTMLElement {
       "</div>" +
       "<div class=\"dialog-error\" id=\"dialog-error\"></div>" +
       "<div class=\"dialog-actions\">" +
-      "<button class=\"btn btn-cancel\" id=\"dialog-cancel\">Cancel</button>" +
+      "<button class=\"btn btn-cancel btn-delete-outline\" id=\"dialog-delete\">Delete</button>" +
       "<button class=\"btn btn-save\" id=\"dialog-save\">Save<span class=\"spinner-inline\" id=\"save-spinner\"></span></button>" +
       "</div>" +
       "</div>" +
@@ -901,7 +924,12 @@ class VinylCollectionCard extends HTMLElement {
     });
 
     root.querySelector("#dialog-save").addEventListener("click", () => this._onSave());
-    root.querySelector("#dialog-cancel").addEventListener("click", () => this._closeDialog());
+    root.querySelector("#view-tracklist-btn").addEventListener("click", () => {
+      if (this._modalRecord && this._modalRecord.record_id) this._openTracklistView(this._modalRecord);
+    });
+    root.querySelector("#dialog-delete").addEventListener("click", () => {
+      if (this._modalRecord && this._modalRecord.record_id) this._openDeleteDialog(this._modalRecord.record_id);
+    });
     root.querySelector("#dialog-close-x").addEventListener("click", () => this._closeDialog());
     root.querySelector("#dialog-overlay").addEventListener("click", e => {
       if (e.target === root.querySelector("#dialog-overlay")) this._closeDialog();
@@ -940,6 +968,8 @@ class VinylCollectionCard extends HTMLElement {
     root.querySelector("#dialog-title").textContent = isEdit ? "Edit Record" : "Add Record";
     root.querySelector("#dialog-save").childNodes[0].textContent = isEdit ? "Save Changes" : "Add to Collection";
     root.querySelector("#dialog-error").style.display = "none";
+    root.querySelector("#dialog-delete").style.display = isEdit ? "inline-flex" : "none";
+    root.querySelector("#view-tracklist-btn").style.display = (isEdit && r.discogs_id) ? "inline-flex" : "none";
     root.querySelector("#artist-suggestions").style.display = "none";
     clearTimeout(this._duplicateCheckTimeout);
     this._duplicateCheckToken++;
@@ -1155,7 +1185,7 @@ class VinylCollectionCard extends HTMLElement {
 
     // Desktop table — show all records
     tbody.innerHTML = records.map(r =>
-      "<tr>" +
+      "<tr data-id=\"" + r.record_id + "\">" +
       "<td class=\"cover-cell\">" + this._coverHTML(r.cover_url, 40) + "</td>" +
       "<td>" + this._esc(r.artist) + "</td>" +
       "<td>" + this._esc(r.album) + "</td>" +
@@ -1164,29 +1194,23 @@ class VinylCollectionCard extends HTMLElement {
       "<td>" + this._esc(r.genre || "") + "</td>" +
       "<td class=\"actions\">" +
       (r.is_next_buy ? "<span class=\"icon-btn cart-indicator\" title=\"Next Buy\" style=\"cursor:default;\"><ha-icon icon=\"mdi:cart\"></ha-icon></span>" : "") +
-      (r.discogs_id ? "<button class=\"icon-btn\" data-id=\"" + r.record_id + "\" data-action=\"tracklist\" title=\"View Tracklist\"><ha-icon icon=\"mdi:format-list-numbered\"></ha-icon></button>" : "") +
-      (r.spotify_uri ? "<button class=\"icon-btn play-btn\" data-id=\"" + r.record_id + "\" data-action=\"play\" title=\"Play on Spotify\"><ha-icon icon=\"mdi:spotify\"></ha-icon></button>" : "") +
-      "<button class=\"icon-btn\" data-id=\"" + r.record_id + "\" data-action=\"delete\" title=\"Delete\"><ha-icon icon=\"mdi:delete\"></ha-icon></button>" +
+      "<button class=\"icon-btn overflow-btn\" data-id=\"" + r.record_id + "\" title=\"Actions\"><ha-icon icon=\"mdi:dots-vertical\"></ha-icon></button>" +
       "</td></tr>"
     ).join("");
 
     tbody.querySelectorAll("tr").forEach(tr => {
       tr.addEventListener("click", e => {
         if (e.target.closest(".icon-btn")) return;
-        const id = tr.querySelector(".icon-btn:not(.cart-indicator)").dataset.id;
-        const rec = this._records.find(r => r.record_id === id);
+        const rec = this._records.find(r => r.record_id === tr.dataset.id);
         if (rec) this._openDialog(rec);
       });
     });
 
-    tbody.querySelectorAll(".icon-btn:not(.cart-indicator)").forEach(btn => {
+    tbody.querySelectorAll(".overflow-btn").forEach(btn => {
       btn.addEventListener("click", e => {
         e.stopPropagation();
-        const id = btn.dataset.id;
-        const rec = this._records.find(r => r.record_id === id);
-        if (btn.dataset.action === "play") { if (rec) this._openPlayPicker(rec); }
-        else if (btn.dataset.action === "tracklist") { if (rec) this._openTracklistView(rec); }
-        else { this._openDeleteDialog(id); }
+        const rec = this._records.find(r => r.record_id === btn.dataset.id);
+        if (rec) this._showRecordMenu(btn, rec);
       });
     });
 
@@ -1217,43 +1241,70 @@ class VinylCollectionCard extends HTMLElement {
         });
       });
 
-      // Overflow toggle — fixed positioned menu
-      const fixedMenu = root.querySelector("#overflow-menu-fixed");
       mobileList.querySelectorAll(".overflow-btn").forEach(btn => {
         btn.addEventListener("click", e => {
           e.stopPropagation();
-          const id = btn.dataset.id;
-          const rec = this._records.find(r => r.record_id === id);
-          if (!rec) return;
-          const rect = btn.getBoundingClientRect();
-          fixedMenu.innerHTML =
-            (rec.discogs_id ? "<div class=\"overflow-item\" data-action=\"tracklist\"><ha-icon icon=\"mdi:format-list-numbered\" style=\"width:18px;height:18px;\"></ha-icon>Tracklist</div>" : "") +
-            (rec.spotify_uri ? "<div class=\"overflow-item\" data-action=\"play\"><ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;width:18px;height:18px;\"></ha-icon>Play</div>" : "") +
-            "<div class=\"overflow-item danger\" data-action=\"delete\"><ha-icon icon=\"mdi:delete\" style=\"width:18px;height:18px;\"></ha-icon>Delete</div>";
-          const menuHeight = 120;
-          const spaceBelow = window.innerHeight - rect.bottom;
-          const top = spaceBelow < menuHeight + 8
-            ? (rect.top - menuHeight - 4)
-            : (rect.bottom + 4);
-          fixedMenu.style.top = top + "px";
-          fixedMenu.style.left = Math.min(rect.right - 130, window.innerWidth - 140) + "px";
-          fixedMenu.classList.toggle("open");
-          fixedMenu.querySelectorAll(".overflow-item").forEach(item => {
-            item.addEventListener("click", e2 => {
-              e2.stopPropagation();
-              fixedMenu.classList.remove("open");
-              if (item.dataset.action === "edit") { if (rec) this._openDialog(rec); }
-              else if (item.dataset.action === "play") { if (rec) this._openPlayPicker(rec); }
-              else if (item.dataset.action === "tracklist") { if (rec) this._openTracklistView(rec); }
-              else { this._openDeleteDialog(rec.record_id); }
-            }, { once: true });
-          });
+          const rec = this._records.find(r => r.record_id === btn.dataset.id);
+          if (rec) this._showRecordMenu(btn, rec);
         });
       });
-
-      document.addEventListener("click", () => fixedMenu.classList.remove("open"));
-      root.querySelector(".table-wrap").addEventListener("scroll", () => fixedMenu.classList.remove("open"));
     }
+  }
+
+  // Single source of truth for per-record actions, shared by the desktop
+  // table and the mobile card list.
+  _recordMenuItems(rec) {
+    const items = [];
+    if (rec.is_wishlist) {
+      items.push({ action: "next-buy", icon: rec.is_next_buy ? "mdi:cart-off" : "mdi:cart", label: rec.is_next_buy ? "Remove Next Buy" : "Next Buy" });
+      items.push({ action: "to-collection", icon: "mdi:check-circle-outline", label: "Move to Collection" });
+    }
+    if (rec.discogs_id) items.push({ action: "tracklist", icon: "mdi:format-list-numbered", label: "Tracklist" });
+    if (rec.spotify_uri) items.push({ action: "play", icon: "mdi:spotify", label: "Play", color: "#1DB954" });
+    items.push({ action: "delete", icon: "mdi:delete", label: "Delete", danger: true });
+    return items;
+  }
+
+  _runRecordAction(rec, action) {
+    if (action === "play") this._openPlayPicker(rec);
+    else if (action === "tracklist") this._openTracklistView(rec);
+    else if (action === "next-buy" || action === "to-collection") this._wishlistAction(rec, action);
+    else if (action === "delete") this._openDeleteDialog(rec.record_id);
+  }
+
+  _showRecordMenu(btn, rec) {
+    const root = this.shadowRoot;
+    const menu = root.querySelector("#overflow-menu-fixed");
+    if (!this._menuCloseBound) {
+      this._menuCloseBound = true;
+      const close = () => menu.classList.remove("open");
+      document.addEventListener("click", close);
+      root.querySelector(".table-wrap").addEventListener("scroll", close);
+      window.addEventListener("scroll", close, true);
+    }
+    const items = this._recordMenuItems(rec);
+    menu.innerHTML = items.map(it =>
+      "<div class=\"overflow-item" + (it.danger ? " danger" : "") + "\" data-action=\"" + it.action + "\">" +
+      "<ha-icon icon=\"" + it.icon + "\" style=\"width:18px;height:18px;" + (it.color ? "color:" + it.color + ";" : "") + "\"></ha-icon>" +
+      this._esc(it.label) + "</div>"
+    ).join("");
+
+    const wasOpenFor = menu.classList.contains("open") && menu.dataset.recordId === rec.record_id;
+    menu.dataset.recordId = rec.record_id;
+    const rect = btn.getBoundingClientRect();
+    const menuHeight = items.length * 40 + 8;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    menu.style.top = (spaceBelow < menuHeight + 8 ? rect.top - menuHeight - 4 : rect.bottom + 4) + "px";
+    menu.style.left = Math.max(8, Math.min(rect.right - 200, window.innerWidth - 210)) + "px";
+    menu.classList.toggle("open", !wasOpenFor);
+
+    menu.querySelectorAll(".overflow-item").forEach(item => {
+      item.addEventListener("click", e => {
+        e.stopPropagation();
+        menu.classList.remove("open");
+        this._runRecordAction(rec, item.dataset.action);
+      });
+    });
   }
 
   _isMultiUser() {
@@ -1433,7 +1484,16 @@ class VinylCollectionCard extends HTMLElement {
     const el = saved.querySelector("#spotify-saved");
     if (el) {
       el.innerHTML = "<ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;flex-shrink:0;\"></ha-icon>" +
-        "<span>This record has been linked to Spotify. Playback enabled.</span>";
+        "<span style=\"flex:1;\">This record has been linked to Spotify. Playback enabled.</span>";
+      const rec = this._modalRecord;
+      if (rec && rec.record_id && rec.spotify_uri) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "btn btn-spotify";
+        b.textContent = "Play";
+        b.addEventListener("click", () => this._openPlayPicker(rec));
+        el.appendChild(b);
+      }
       el.style.display = "flex";
     }
   }
@@ -1496,12 +1556,18 @@ class VinylCollectionCard extends HTMLElement {
       "</div>";
   }
 
-  async _openTracklistView(record) {
-    const body = this.shadowRoot.querySelector("#tracklist-body");
-    this.shadowRoot.querySelector("#tracklist-overlay").classList.add("open");
+  _openTracklistView(record) {
+    const overlay = this.shadowRoot.querySelector("#tracklist-overlay");
+    overlay.classList.add("open");
+    return this._loadTracks(record, this.shadowRoot.querySelector("#tracklist-body"),
+      () => overlay.classList.contains("open"), true);
+  }
+
+  async _loadTracks(record, body, isActive, withHeader) {
+    const head = withHeader ? this._tracklistHeaderHTML(record) : "";
 
     if (record.tracks && record.tracks.length) {
-      body.innerHTML = this._tracklistHeaderHTML(record) + this._tracklistRowsHTML(record.tracks);
+      body.innerHTML = head + this._tracklistRowsHTML(record.tracks);
       return;
     }
 
@@ -1513,12 +1579,12 @@ class VinylCollectionCard extends HTMLElement {
       // returns a real but completely wrong tracklist rather than an error.
       // Records added before this feature only have a bare discogs_id with
       // no recorded type, so there's nothing to safely guess from here.
-      body.innerHTML = this._tracklistHeaderHTML(record) +
-        "<div style=\"padding:12px;color:var(--secondary-text-color);font-size:13px;\">Tracklist isn't available for this record yet. Edit it and re-select it from Discogs search to enable tracklist support.</div>";
+      body.innerHTML = head +
+        "<div style=\"padding:12px;color:var(--secondary-text-color);font-size:13px;\">Tracklist isn't available for this record yet. Re-select it from Discogs search to enable tracklist support.</div>";
       return;
     }
 
-    body.innerHTML = this._tracklistHeaderHTML(record) +
+    body.innerHTML = head +
       "<div style=\"display:flex;align-items:center;gap:8px;padding:12px;color:var(--secondary-text-color);font-size:13px;\"><div class=\"spinner\" style=\"width:16px;height:16px;border-width:2px;\"></div>Loading tracks...</div>";
 
     let tracks = [];
@@ -1532,8 +1598,8 @@ class VinylCollectionCard extends HTMLElement {
       tracks = [];
     }
 
-    if (this.shadowRoot.querySelector("#tracklist-overlay").classList.contains("open")) {
-      body.innerHTML = this._tracklistHeaderHTML(record) + this._tracklistRowsHTML(tracks);
+    if (isActive()) {
+      body.innerHTML = head + this._tracklistRowsHTML(tracks);
     }
 
     if (tracks.length) {

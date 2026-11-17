@@ -1185,7 +1185,7 @@ class VinylCollectionCard extends HTMLElement {
 
     // Desktop table — show all records
     tbody.innerHTML = records.map(r =>
-      "<tr>" +
+      "<tr data-id=\"" + r.record_id + "\">" +
       "<td class=\"cover-cell\">" + this._coverHTML(r.cover_url, 40) + "</td>" +
       "<td>" + this._esc(r.artist) + "</td>" +
       "<td>" + this._esc(r.album) + "</td>" +
@@ -1193,32 +1193,24 @@ class VinylCollectionCard extends HTMLElement {
       "<td>" + this._starsHTML(r.rating || 0) + "</td>" +
       "<td>" + this._esc(r.genre || "") + "</td>" +
       "<td class=\"actions\">" +
-      (r.is_wishlist ? "<button class=\"icon-btn\" data-id=\"" + r.record_id + "\" data-action=\"next-buy\" title=\"" + (r.is_next_buy ? "Remove from Next Buy" : "Mark as Next Buy") + "\"><ha-icon icon=\"" + (r.is_next_buy ? "mdi:cart" : "mdi:cart-outline") + "\"></ha-icon></button>" +
-        "<button class=\"icon-btn\" data-id=\"" + r.record_id + "\" data-action=\"to-collection\" title=\"Move to Collection\"><ha-icon icon=\"mdi:check-circle-outline\"></ha-icon></button>" : "") +
-      (r.discogs_id ? "<button class=\"icon-btn\" data-id=\"" + r.record_id + "\" data-action=\"tracklist\" title=\"View Tracklist\"><ha-icon icon=\"mdi:format-list-numbered\"></ha-icon></button>" : "") +
-      (r.spotify_uri ? "<button class=\"icon-btn play-btn\" data-id=\"" + r.record_id + "\" data-action=\"play\" title=\"Play on Spotify\"><ha-icon icon=\"mdi:spotify\"></ha-icon></button>" : "") +
-      "<button class=\"icon-btn\" data-id=\"" + r.record_id + "\" data-action=\"delete\" title=\"Delete\"><ha-icon icon=\"mdi:delete\"></ha-icon></button>" +
+      (r.is_next_buy ? "<span class=\"icon-btn cart-indicator\" title=\"Next Buy\" style=\"cursor:default;\"><ha-icon icon=\"mdi:cart\"></ha-icon></span>" : "") +
+      "<button class=\"icon-btn overflow-btn\" data-id=\"" + r.record_id + "\" title=\"Actions\"><ha-icon icon=\"mdi:dots-vertical\"></ha-icon></button>" +
       "</td></tr>"
     ).join("");
 
     tbody.querySelectorAll("tr").forEach(tr => {
       tr.addEventListener("click", e => {
         if (e.target.closest(".icon-btn")) return;
-        const id = tr.querySelector(".icon-btn:not(.cart-indicator)").dataset.id;
-        const rec = this._records.find(r => r.record_id === id);
+        const rec = this._records.find(r => r.record_id === tr.dataset.id);
         if (rec) this._openDialog(rec);
       });
     });
 
-    tbody.querySelectorAll(".icon-btn:not(.cart-indicator)").forEach(btn => {
+    tbody.querySelectorAll(".overflow-btn").forEach(btn => {
       btn.addEventListener("click", e => {
         e.stopPropagation();
-        const id = btn.dataset.id;
-        const rec = this._records.find(r => r.record_id === id);
-        if (btn.dataset.action === "play") { if (rec) this._openPlayPicker(rec); }
-        else if (btn.dataset.action === "tracklist") { if (rec) this._openTracklistView(rec); }
-        else if (btn.dataset.action === "next-buy" || btn.dataset.action === "to-collection") { if (rec) this._wishlistAction(rec, btn.dataset.action); }
-        else { this._openDeleteDialog(id); }
+        const rec = this._records.find(r => r.record_id === btn.dataset.id);
+        if (rec) this._showRecordMenu(btn, rec);
       });
     });
 
@@ -1249,46 +1241,70 @@ class VinylCollectionCard extends HTMLElement {
         });
       });
 
-      // Overflow toggle — fixed positioned menu
-      const fixedMenu = root.querySelector("#overflow-menu-fixed");
       mobileList.querySelectorAll(".overflow-btn").forEach(btn => {
         btn.addEventListener("click", e => {
           e.stopPropagation();
-          const id = btn.dataset.id;
-          const rec = this._records.find(r => r.record_id === id);
-          if (!rec) return;
-          const rect = btn.getBoundingClientRect();
-          fixedMenu.innerHTML =
-            (rec.is_wishlist ? "<div class=\"overflow-item\" data-action=\"next-buy\"><ha-icon icon=\"" + (rec.is_next_buy ? "mdi:cart-off" : "mdi:cart") + "\" style=\"width:18px;height:18px;\"></ha-icon>" + (rec.is_next_buy ? "Remove Next Buy" : "Next Buy") + "</div>" +
-              "<div class=\"overflow-item\" data-action=\"to-collection\"><ha-icon icon=\"mdi:check-circle-outline\" style=\"width:18px;height:18px;\"></ha-icon>Move to Collection</div>" : "") +
-            (rec.discogs_id ? "<div class=\"overflow-item\" data-action=\"tracklist\"><ha-icon icon=\"mdi:format-list-numbered\" style=\"width:18px;height:18px;\"></ha-icon>Tracklist</div>" : "") +
-            (rec.spotify_uri ? "<div class=\"overflow-item\" data-action=\"play\"><ha-icon icon=\"mdi:spotify\" style=\"color:#1DB954;width:18px;height:18px;\"></ha-icon>Play</div>" : "") +
-            "<div class=\"overflow-item danger\" data-action=\"delete\"><ha-icon icon=\"mdi:delete\" style=\"width:18px;height:18px;\"></ha-icon>Delete</div>";
-          const menuHeight = rec.is_wishlist ? 200 : 120;
-          const spaceBelow = window.innerHeight - rect.bottom;
-          const top = spaceBelow < menuHeight + 8
-            ? (rect.top - menuHeight - 4)
-            : (rect.bottom + 4);
-          fixedMenu.style.top = top + "px";
-          fixedMenu.style.left = Math.min(rect.right - 200, window.innerWidth - 210) + "px";
-          fixedMenu.classList.toggle("open");
-          fixedMenu.querySelectorAll(".overflow-item").forEach(item => {
-            item.addEventListener("click", e2 => {
-              e2.stopPropagation();
-              fixedMenu.classList.remove("open");
-              if (item.dataset.action === "edit") { if (rec) this._openDialog(rec); }
-              else if (item.dataset.action === "play") { if (rec) this._openPlayPicker(rec); }
-              else if (item.dataset.action === "tracklist") { if (rec) this._openTracklistView(rec); }
-              else if (item.dataset.action === "next-buy" || item.dataset.action === "to-collection") { this._wishlistAction(rec, item.dataset.action); }
-              else { this._openDeleteDialog(rec.record_id); }
-            }, { once: true });
-          });
+          const rec = this._records.find(r => r.record_id === btn.dataset.id);
+          if (rec) this._showRecordMenu(btn, rec);
         });
       });
-
-      document.addEventListener("click", () => fixedMenu.classList.remove("open"));
-      root.querySelector(".table-wrap").addEventListener("scroll", () => fixedMenu.classList.remove("open"));
     }
+  }
+
+  // Single source of truth for per-record actions, shared by the desktop
+  // table and the mobile card list.
+  _recordMenuItems(rec) {
+    const items = [];
+    if (rec.is_wishlist) {
+      items.push({ action: "next-buy", icon: rec.is_next_buy ? "mdi:cart-off" : "mdi:cart", label: rec.is_next_buy ? "Remove Next Buy" : "Next Buy" });
+      items.push({ action: "to-collection", icon: "mdi:check-circle-outline", label: "Move to Collection" });
+    }
+    if (rec.discogs_id) items.push({ action: "tracklist", icon: "mdi:format-list-numbered", label: "Tracklist" });
+    if (rec.spotify_uri) items.push({ action: "play", icon: "mdi:spotify", label: "Play", color: "#1DB954" });
+    items.push({ action: "delete", icon: "mdi:delete", label: "Delete", danger: true });
+    return items;
+  }
+
+  _runRecordAction(rec, action) {
+    if (action === "play") this._openPlayPicker(rec);
+    else if (action === "tracklist") this._openTracklistView(rec);
+    else if (action === "next-buy" || action === "to-collection") this._wishlistAction(rec, action);
+    else if (action === "delete") this._openDeleteDialog(rec.record_id);
+  }
+
+  _showRecordMenu(btn, rec) {
+    const root = this.shadowRoot;
+    const menu = root.querySelector("#overflow-menu-fixed");
+    if (!this._menuCloseBound) {
+      this._menuCloseBound = true;
+      const close = () => menu.classList.remove("open");
+      document.addEventListener("click", close);
+      root.querySelector(".table-wrap").addEventListener("scroll", close);
+      window.addEventListener("scroll", close, true);
+    }
+    const items = this._recordMenuItems(rec);
+    menu.innerHTML = items.map(it =>
+      "<div class=\"overflow-item" + (it.danger ? " danger" : "") + "\" data-action=\"" + it.action + "\">" +
+      "<ha-icon icon=\"" + it.icon + "\" style=\"width:18px;height:18px;" + (it.color ? "color:" + it.color + ";" : "") + "\"></ha-icon>" +
+      this._esc(it.label) + "</div>"
+    ).join("");
+
+    const wasOpenFor = menu.classList.contains("open") && menu.dataset.recordId === rec.record_id;
+    menu.dataset.recordId = rec.record_id;
+    const rect = btn.getBoundingClientRect();
+    const menuHeight = items.length * 40 + 8;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    menu.style.top = (spaceBelow < menuHeight + 8 ? rect.top - menuHeight - 4 : rect.bottom + 4) + "px";
+    menu.style.left = Math.max(8, Math.min(rect.right - 200, window.innerWidth - 210)) + "px";
+    menu.classList.toggle("open", !wasOpenFor);
+
+    menu.querySelectorAll(".overflow-item").forEach(item => {
+      item.addEventListener("click", e => {
+        e.stopPropagation();
+        menu.classList.remove("open");
+        this._runRecordAction(rec, item.dataset.action);
+      });
+    });
   }
 
   _isMultiUser() {

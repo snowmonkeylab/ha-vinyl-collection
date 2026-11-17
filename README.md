@@ -72,7 +72,7 @@ During setup and via **Settings → Devices & Services → Vinyl Collection → 
 
 The card has two tabs — **Collection** and **Wish List**. Records marked as wish list items appear only in the Wish List tab, keeping your owned records separate from ones you're looking for.
 
-The **Wish List** toggle only appears when adding a new record or editing a record that's already on the wish list. To move an item into your collection, edit it and switch **Wish List** off (or use the move button in the duplicate notice when re-adding it). Once a record is in your collection it can't be put back on the wish list, and any **Next Buy** flag is cleared automatically.
+The **Wish List** toggle only appears when adding a new record or editing a record that's already on the wish list. Wish list rows (and the three-dot menu on mobile) have quick actions to toggle **Next Buy** and **Move to Collection** without opening the record. You can also edit a record and switch **Wish List** off, or use the move button in the duplicate notice when re-adding it. Once a record is in your collection it can't be put back on the wish list, and any **Next Buy** flag is cleared automatically.
 
 ### Playing a record
 
